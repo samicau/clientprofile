@@ -1,0 +1,10 @@
+{
+  "description": "Engage with a virtual pet through interactive mini-games and treats, offering fun and companionship for users of all ages.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
