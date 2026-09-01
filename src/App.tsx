@@ -51,6 +51,7 @@ interface LegalEntity {
   customerName: string;
   namespace: string;
   status: 'Setup' | 'Active' | 'Terminated' | 'Suspended';
+  hasIncompleteTaxCodes?: boolean;
 }
 
 interface TaxRow {
@@ -62,16 +63,37 @@ interface TaxRow {
 interface StatDef {
   label: string; value: string | number; sub: string;
   icon: string; iconBg: string; iconColor: string; accent: string;
+  filter?: DashboardFilter;
 }
+
+type DashboardFilter = 'setup' | 'active' | 'incomplete';
+
+const DASHBOARD_FILTER_DETAILS: Record<DashboardFilter, { label: string; description: string; className: string }> = {
+  setup: {
+    label: 'Setup legal entities',
+    description: 'Showing legal entities in setup',
+    className: 'bg-blue-50 text-blue-700 border-blue-200',
+  },
+  active: {
+    label: 'Active legal entities',
+    description: 'Showing active legal entities',
+    className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+  },
+  incomplete: {
+    label: 'Incomplete tax codes',
+    description: 'Showing legal entities with incomplete tax codes',
+    className: 'bg-orange-50 text-orange-700 border-orange-200',
+  },
+};
 
 // ── Static data ────────────────────────────────────────────────
 const ENTITIES: LegalEntity[] = [
-  { id: 1,  name: 'Avengers',                         federalId: '12-3121212', customerName: 'Disney',                       namespace: 'Disney',                      status: 'Setup' },
+  { id: 1,  name: 'Avengers',                         federalId: '12-3121212', customerName: 'Disney',                       namespace: 'Disney',                      status: 'Setup', hasIncompleteTaxCodes: true },
   { id: 2,  name: 'preprod test',                      federalId: '56-4323728', customerName: 'Sandhya',                      namespace: 'sandhya',                     status: 'Setup' },
   { id: 3,  name: 'File Demo 2',                       federalId: '87-6677878', customerName: 'Atlantic Tool',                namespace: 'MoveLegalEntitiesFrom64235',   status: 'Setup' },
   { id: 4,  name: 'ca tax code test',                  federalId: '21-5615158', customerName: 'DTP-20771',                    namespace: 'DTP20771 test',                status: 'Setup' },
   { id: 5,  name: 'DTP-21711-Test',                    federalId: '14-1457895', customerName: 'FM_MR Test Customer',          namespace: 'dtpmaster_site_65',            status: 'Setup' },
-  { id: 6,  name: 'California Testing Dont Delete',    federalId: '00-7766115', customerName: 'California Testing VDI',       namespace: 'CA VDI Testing',              status: 'Active' },
+  { id: 6,  name: 'California Testing Dont Delete',    federalId: '00-7766115', customerName: 'California Testing VDI',       namespace: 'CA VDI Testing',              status: 'Active', hasIncompleteTaxCodes: true },
   { id: 7,  name: 'test',                              federalId: '71-1226848', customerName: 'walmart',                      namespace: 'Testing12345',                 status: 'Setup' },
   { id: 8,  name: 'test',                              federalId: '15-6186148', customerName: 'walmart',                      namespace: 'Testing12345',                 status: 'Setup' },
   { id: 9,  name: 'MONTANA INSTRUMENTS CORPORATIO',    federalId: '26-3355823', customerName: 'ATLAS COPCO NORTH AMERICA LLC', namespace: 'CNET-T9046-00',              status: 'Active' },
@@ -81,7 +103,7 @@ const ENTITIES: LegalEntity[] = [
   { id: 13, name: 'ATLAS COPCO NORTH AMERICA LLC',     federalId: '20-5024915', customerName: 'ATLAS COPCO NORTH AMERICA LLC', namespace: 'CNET-T9046-00',              status: 'Active' },
   { id: 14, name: 'SCHEUGENPFLUG INC',                 federalId: '26-1471096', customerName: 'ATLAS COPCO NORTH AMERICA LLC', namespace: 'CNET-T9046-00',              status: 'Terminated' },
   { id: 15, name: 'MID-SOUTH ENGINE AND POWER SYS',    federalId: '46-4320006', customerName: 'ATLAS COPCO NORTH AMERICA LLC', namespace: 'CNET-T9046-00',              status: 'Active' },
-  { id: 16, name: 'CH SPENCER LLC',                    federalId: '38-4036205', customerName: 'ATLAS COPCO NORTH AMERICA LLC', namespace: 'CNET-T9046-00',              status: 'Suspended' },
+  { id: 16, name: 'CH SPENCER LLC',                    federalId: '38-4036205', customerName: 'ATLAS COPCO NORTH AMERICA LLC', namespace: 'CNET-T9046-00',              status: 'Suspended', hasIncompleteTaxCodes: true },
   { id: 17, name: 'ATLAS COPCO TOOLS ASSEMBLY S',      federalId: '38-2561314', customerName: 'ATLAS COPCO NORTH AMERICA LLC', namespace: 'CNET-T9046-00',              status: 'Active' },
   { id: 18, name: 'BEACONMEDAES LLC',                  federalId: '56-2067998', customerName: 'ATLAS COPCO NORTH AMERICA LLC', namespace: 'CNET-T9046-00',              status: 'Active' },
   { id: 19, name: 'PERCEPTRON INC',                    federalId: '38-2381442', customerName: 'ATLAS COPCO NORTH AMERICA LLC', namespace: 'CNET-T9046-00',              status: 'Active' },
@@ -107,9 +129,9 @@ const TAX_ROWS: TaxRow[] = [
 ];
 
 const STATS: StatDef[] = [
-  { label: 'Setup Legal Entities',        value: 12, sub: '3 added this quarter',        icon: I.building,    iconBg: 'bg-blue-50',   iconColor: 'text-blue-600',   accent: 'border-blue-500' },
-  { label: 'Total Active Legal Entities', value: 8,  sub: '67% of total entities',       icon: I.checkCircle, iconBg: 'bg-emerald-50',iconColor: 'text-emerald-600',accent: 'border-emerald-500' },
-  { label: 'Incomplete Tax Codes',        value: 47, sub: 'Requires attention',          icon: I.warn,        iconBg: 'bg-orange-50', iconColor: 'text-orange-500', accent: 'border-orange-500' },
+  { label: 'Setup Legal Entities',        value: 12, sub: '3 added this quarter',        icon: I.building,    iconBg: 'bg-blue-50',   iconColor: 'text-blue-600',   accent: 'border-blue-500', filter: 'setup' },
+  { label: 'Total Active Legal Entities', value: 8,  sub: '67% of total entities',       icon: I.checkCircle, iconBg: 'bg-emerald-50',iconColor: 'text-emerald-600',accent: 'border-emerald-500', filter: 'active' },
+  { label: 'Incomplete Tax Codes',        value: 47, sub: 'Requires attention',          icon: I.warn,        iconBg: 'bg-orange-50', iconColor: 'text-orange-500', accent: 'border-orange-500', filter: 'incomplete' },
   { label: 'States Covered',             value: 28, sub: 'Across all legal entities',   icon: I.globe,       iconBg: 'bg-violet-50', iconColor: 'text-violet-600', accent: 'border-violet-500' },
 ];
 
@@ -141,9 +163,16 @@ function TaxBadge({ status }: { status: 'Active' | 'Incomplete' }) {
 }
 
 // ── Stat card ──────────────────────────────────────────────────
-function StatCard({ s }: { s: StatDef }) {
+function StatCard({ s, active, onClick }: Readonly<{ s: StatDef; active: boolean; onClick?: () => void }>) {
+  const interactive = Boolean(onClick);
   return (
-    <div className={`bg-white rounded-xl border border-slate-200 border-l-4 ${s.accent} p-4 flex items-start gap-3.5 shadow-sm`}>
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={interactive ? active : undefined}
+      disabled={!interactive}
+      className={`bg-white rounded-xl border border-slate-200 border-l-4 ${s.accent} p-4 flex items-start gap-3.5 shadow-sm text-left ${interactive ? 'cursor-pointer hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2' : 'cursor-default'} ${active ? 'ring-2 ring-blue-500 ring-offset-1' : ''}`}
+    >
       <div className={`${s.iconBg} ${s.iconColor} rounded-lg p-2.5 shrink-0`}>
         <Ic d={s.icon} size={18} />
       </div>
@@ -152,7 +181,7 @@ function StatCard({ s }: { s: StatDef }) {
         <p className="text-2xl font-bold text-slate-900 mt-1 leading-none">{s.value}</p>
         <p className="text-xs text-slate-400 mt-1.5">{s.sub}</p>
       </div>
-    </div>
+    </button>
   );
 }
 
@@ -170,6 +199,7 @@ function SortIc({ col, active, dir }: { col: string; active: boolean; dir: 'asc'
 // ── HOME PAGE ──────────────────────────────────────────────────
 function HomePage({ onSelect }: { onSelect: (e: LegalEntity) => void }) {
   const [search, setSearch] = useState('');
+  const [dashboardFilter, setDashboardFilter] = useState<DashboardFilter | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [sortCol, setSortCol] = useState<keyof LegalEntity | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
@@ -184,6 +214,9 @@ function HomePage({ onSelect }: { onSelect: (e: LegalEntity) => void }) {
 
   const displayed = useMemo(() => {
     let rows = [...ENTITIES];
+    if (dashboardFilter === 'setup') rows = rows.filter(r => r.status === 'Setup');
+    if (dashboardFilter === 'active') rows = rows.filter(r => r.status === 'Active');
+    if (dashboardFilter === 'incomplete') rows = rows.filter(r => r.hasIncompleteTaxCodes);
     if (search) rows = rows.filter(r =>
       r.name.toLowerCase().includes(search.toLowerCase()) ||
       r.customerName.toLowerCase().includes(search.toLowerCase()) ||
@@ -197,7 +230,14 @@ function HomePage({ onSelect }: { onSelect: (e: LegalEntity) => void }) {
       });
     }
     return rows;
-  }, [search, sortCol, sortDir]);
+  }, [dashboardFilter, search, sortCol, sortDir]);
+
+  const toggleDashboardFilter = (filter: DashboardFilter) => {
+    setDashboardFilter(current => current === filter ? null : filter);
+    setPage(1);
+  };
+
+  const activeFilter = dashboardFilter ? DASHBOARD_FILTER_DETAILS[dashboardFilter] : null;
 
   const columns: { key: keyof LegalEntity; label: string }[] = [
     { key: 'name',         label: 'Legal entity name' },
@@ -246,7 +286,7 @@ function HomePage({ onSelect }: { onSelect: (e: LegalEntity) => void }) {
           <span className="text-xs text-slate-400">Last updated: just now</span>
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {STATS.map(s => <StatCard key={s.label} s={s} />)}
+          {STATS.map(s => <StatCard key={s.label} s={s} active={dashboardFilter === s.filter} onClick={s.filter ? () => toggleDashboardFilter(s.filter) : undefined} />)}
         </div>
       </div>
 
@@ -288,10 +328,31 @@ function HomePage({ onSelect }: { onSelect: (e: LegalEntity) => void }) {
                 </button>
               ))}
             </div>
-            <button className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors whitespace-nowrap">
-              Clear all filters
-            </button>
+            {(dashboardFilter || search) && (
+              <button onClick={() => { setDashboardFilter(null); setSearch(''); setPage(1); }}
+                className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors whitespace-nowrap">
+                Clear filters
+              </button>
+            )}
           </div>
+
+          {activeFilter && (
+            <div className="flex items-center gap-2 px-6 pb-3">
+              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${activeFilter.className}`}>
+                {dashboardFilter === 'incomplete' && <Ic d={I.warn} size={12} />}
+                {activeFilter.label}
+                <button
+                  type="button"
+                  onClick={() => { setDashboardFilter(null); setPage(1); }}
+                  aria-label={`Remove ${activeFilter.label} filter`}
+                  className="ml-0.5 rounded-sm hover:bg-black/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-current"
+                >
+                  ×
+                </button>
+              </span>
+              <p className="text-xs text-slate-500">{activeFilter.description} ({displayed.length})</p>
+            </div>
+          )}
 
           {/* Table */}
           <div className="overflow-x-auto border-t border-slate-100">
