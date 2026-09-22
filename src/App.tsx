@@ -59,7 +59,7 @@ interface TaxRow {
   id: number; name: string; status: 'Active' | 'Incomplete';
   shortName: string; category: string; state: string;
   auth: string | null; rate: number | null; psd: string | null;
-  isAuthorized: boolean; taxCode: string; ctsCode: string;
+  isAuthorized: boolean; taxCode: string; ctsCode: string; entityId: number;
 }
 
 interface StatDef {
@@ -102,16 +102,16 @@ const ENTITIES: LegalEntity[] = [
 ];
 
 const TAX_ROWS: TaxRow[] = [
-  { id: 1,  name: 'Apple Creek Village (Wayne) - Withholding Tax',          status: 'Incomplete', shortName: 'APPLE CREEK VILLAGE RES',    category: 'Withholding Tax',            state: 'Ohio',    auth: 'Filing', rate: null, psd: null, isAuthorized: false, taxCode: 'USA-00000111-NR', ctsCode: 'CTS-39001' },
-  { id: 2,  name: 'Alabama State - Withholding Tax',                         status: 'Active',     shortName: 'AL SIT',                     category: 'Withholding Tax',            state: 'Alabama', auth: 'Filing', rate: null, psd: null, isAuthorized: true, taxCode: 'USA-00000222-NR', ctsCode: 'CTS-01002' },
-  { id: 3,  name: 'Alabama State - Employee Back Up Withholding',            status: 'Active',     shortName: 'AL BACKUP W/H',              category: 'Backup Withholding',         state: 'Alabama', auth: 'Filing', rate: null, psd: null, isAuthorized: true, taxCode: 'USA-00000333-NR', ctsCode: 'CTS-01003' },
-  { id: 4,  name: 'Alabama State - Employer Unemployment Tax',               status: 'Active',     shortName: 'AL SUI',                     category: 'Employer Unemployment Tax',  state: 'Alabama', auth: 'Filing', rate: 60.1, psd: null, isAuthorized: true, taxCode: 'USA-00000444-NR', ctsCode: 'CTS-01004' },
-  { id: 5,  name: 'Alabama State - Employer Security Assessment Tax',        status: 'Active',     shortName: 'AL SECURITY ASSESSMENT',     category: 'Employee Additional Medicare',state: 'Alabama', auth: 'Filing', rate: 64.1, psd: null, isAuthorized: false, taxCode: 'USA-00000555-NR', ctsCode: 'CTS-01005' },
-  { id: 6,  name: 'Attalla City (Etowah County) - Employee Occupational Tax',status: 'Active',     shortName: 'ATTALLA CITY TAX',           category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 81.1, psd: null, isAuthorized: true, taxCode: 'USA-00000666-NR', ctsCode: 'CTS-01006' },
-  { id: 7,  name: 'Auburn City (Lee County) - Employee Occupational Tax',    status: 'Active',     shortName: 'AUBURN',                     category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 67.1, psd: null, isAuthorized: false, taxCode: 'USA-00000777-NR', ctsCode: 'CTS-01007' },
-  { id: 8,  name: 'Bear Creek City (Marion County) - Employee Occupational Tax', status: 'Active', shortName: 'BEAR CREEK OCCUPATIONAL TAX', category: 'Employee Occupation Tax',   state: 'Alabama', auth: 'Filing', rate: 51.1, psd: null, isAuthorized: true, taxCode: 'USA-00000888-NR', ctsCode: 'CTS-01008' },
-  { id: 9,  name: 'Beaverton Town (Lamar County) - Employee Occupational Tax',status: 'Active',    shortName: 'BEAVERTON',                  category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 64.1, psd: null, isAuthorized: false, taxCode: 'USA-00000999-NR', ctsCode: 'CTS-01009' },
-  { id: 10, name: 'Bessemer City (Jefferson County) - Employee Occupational Tax', status: 'Active',shortName: 'BESSEMER',                   category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 47.1, psd: null, isAuthorized: true, taxCode: 'USA-00001110-NR', ctsCode: 'CTS-01010' },
+  { id: 1,  name: 'Apple Creek Village (Wayne) - Withholding Tax',          status: 'Incomplete', shortName: 'APPLE CREEK VILLAGE RES',    category: 'Withholding Tax',            state: 'Ohio',    auth: 'Filing', rate: null, psd: null, isAuthorized: false, taxCode: 'USA-00000111-NR', ctsCode: 'CTS-39001', entityId: 1 },
+  { id: 2,  name: 'Alabama State - Withholding Tax',                         status: 'Active',     shortName: 'AL SIT',                     category: 'Withholding Tax',            state: 'Alabama', auth: 'Filing', rate: null, psd: null, isAuthorized: true, taxCode: 'USA-00000222-NR', ctsCode: 'CTS-01002', entityId: 2 },
+  { id: 3,  name: 'Alabama State - Employee Back Up Withholding',            status: 'Active',     shortName: 'AL BACKUP W/H',              category: 'Backup Withholding',         state: 'Alabama', auth: 'Filing', rate: null, psd: null, isAuthorized: true, taxCode: 'USA-00000333-NR', ctsCode: 'CTS-01003', entityId: 3 },
+  { id: 4,  name: 'Alabama State - Employer Unemployment Tax',               status: 'Active',     shortName: 'AL SUI',                     category: 'Employer Unemployment Tax',  state: 'Alabama', auth: 'Filing', rate: 60.1, psd: null, isAuthorized: true, taxCode: 'USA-00000444-NR', ctsCode: 'CTS-01004', entityId: 4 },
+  { id: 5,  name: 'Alabama State - Employer Security Assessment Tax',        status: 'Active',     shortName: 'AL SECURITY ASSESSMENT',     category: 'Employee Additional Medicare',state: 'Alabama', auth: 'Filing', rate: 64.1, psd: null, isAuthorized: false, taxCode: 'USA-00000555-NR', ctsCode: 'CTS-01005', entityId: 5 },
+  { id: 6,  name: 'Attalla City (Etowah County) - Employee Occupational Tax',status: 'Active',     shortName: 'ATTALLA CITY TAX',           category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 81.1, psd: null, isAuthorized: true, taxCode: 'USA-00000666-NR', ctsCode: 'CTS-01006', entityId: 6 },
+  { id: 7,  name: 'Auburn City (Lee County) - Employee Occupational Tax',    status: 'Active',     shortName: 'AUBURN',                     category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 67.1, psd: null, isAuthorized: false, taxCode: 'USA-00000777-NR', ctsCode: 'CTS-01007', entityId: 7 },
+  { id: 8,  name: 'Bear Creek City (Marion County) - Employee Occupational Tax', status: 'Active', shortName: 'BEAR CREEK OCCUPATIONAL TAX', category: 'Employee Occupation Tax',   state: 'Alabama', auth: 'Filing', rate: 51.1, psd: null, isAuthorized: true, taxCode: 'USA-00000888-NR', ctsCode: 'CTS-01008', entityId: 8 },
+  { id: 9,  name: 'Beaverton Town (Lamar County) - Employee Occupational Tax',status: 'Active',    shortName: 'BEAVERTON',                  category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 64.1, psd: null, isAuthorized: false, taxCode: 'USA-00000999-NR', ctsCode: 'CTS-01009', entityId: 9 },
+  { id: 10, name: 'Bessemer City (Jefferson County) - Employee Occupational Tax', status: 'Active',shortName: 'BESSEMER',                   category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 47.1, psd: null, isAuthorized: true, taxCode: 'USA-00001110-NR', ctsCode: 'CTS-01010', entityId: 10 },
 ];
 
 const DASHBOARD_TAX_CODES: DashboardTaxCodeRow[] = ENTITIES.map((entity, i) => {
@@ -494,6 +494,9 @@ function DetailContent({ entity, onBack }: { entity: LegalEntity; onBack: () => 
   const [stateFilter, setStateFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [authFilter, setAuthFilter] = useState<string[]>([]);
+  const [entityNameFilter, setEntityNameFilter] = useState<string[]>([]);
+  const [entityNumberFilter, setEntityNumberFilter] = useState<string[]>([entity.federalId]);
+  const [namespaceFilter, setNamespaceFilter] = useState<string[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [page, setPage] = useState(1);
   const [authorized, setAuthorized] = useState<Record<number, boolean>>(
@@ -515,20 +518,31 @@ function DetailContent({ entity, onBack }: { entity: LegalEntity; onBack: () => 
   const toggleRow = (id: number) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
   const allChecked = selected.length === TAX_ROWS.length;
   const toggleAll = () => setSelected(allChecked ? [] : TAX_ROWS.map(r => r.id));
+  const entityById = useMemo(() => new Map(ENTITIES.map(e => [e.id, e])), []);
   const nameOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => r.name))].sort((a, b) => a.localeCompare(b)), []);
   const taxCodeOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => r.taxCode))].sort((a, b) => a.localeCompare(b)), []);
   const stateOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => r.state))].sort((a, b) => a.localeCompare(b)), []);
   const statusOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => r.status))].sort((a, b) => a.localeCompare(b)), []);
   const authOptions = ['Authorized', 'Not authorized'];
-  const filtered = TAX_ROWS.filter(r =>
-    (nameFilter.length === 0 || nameFilter.includes(r.name)) &&
-    (taxCodeFilter.length === 0 || taxCodeFilter.includes(r.taxCode)) &&
-    (stateFilter.length === 0 || stateFilter.includes(r.state)) &&
-    (statusFilter.length === 0 || statusFilter.includes(r.status)) &&
-    (authFilter.length === 0 || authFilter.includes(authorized[r.id] ? 'Authorized' : 'Not authorized'))
-  );
-  const hasActiveFilters = Boolean(nameFilter.length || taxCodeFilter.length || stateFilter.length || statusFilter.length || authFilter.length);
-  const clearAllFilters = () => { setNameFilter([]); setTaxCodeFilter([]); setStateFilter([]); setStatusFilter([]); setAuthFilter([]); };
+  const entityNameOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => entityById.get(r.entityId)?.name ?? ''))].sort((a, b) => a.localeCompare(b)), [entityById]);
+  const entityNumberOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => entityById.get(r.entityId)?.federalId ?? ''))].sort((a, b) => a.localeCompare(b)), [entityById]);
+  const namespaceOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => entityById.get(r.entityId)?.namespace ?? ''))].sort((a, b) => a.localeCompare(b)), [entityById]);
+  const filtered = TAX_ROWS.filter(r => {
+    const rowEntity = entityById.get(r.entityId);
+    return (nameFilter.length === 0 || nameFilter.includes(r.name)) &&
+      (taxCodeFilter.length === 0 || taxCodeFilter.includes(r.taxCode)) &&
+      (stateFilter.length === 0 || stateFilter.includes(r.state)) &&
+      (statusFilter.length === 0 || statusFilter.includes(r.status)) &&
+      (authFilter.length === 0 || authFilter.includes(authorized[r.id] ? 'Authorized' : 'Not authorized')) &&
+      (entityNameFilter.length === 0 || entityNameFilter.includes(rowEntity?.name ?? '')) &&
+      (entityNumberFilter.length === 0 || entityNumberFilter.includes(rowEntity?.federalId ?? '')) &&
+      (namespaceFilter.length === 0 || namespaceFilter.includes(rowEntity?.namespace ?? ''));
+  });
+  const hasActiveFilters = Boolean(nameFilter.length || taxCodeFilter.length || stateFilter.length || statusFilter.length || authFilter.length || entityNameFilter.length || entityNumberFilter.length || namespaceFilter.length);
+  const clearAllFilters = () => {
+    setNameFilter([]); setTaxCodeFilter([]); setStateFilter([]); setStatusFilter([]); setAuthFilter([]);
+    setEntityNameFilter([]); setEntityNumberFilter([]); setNamespaceFilter([]);
+  };
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50">
@@ -565,6 +579,9 @@ function DetailContent({ entity, onBack }: { entity: LegalEntity; onBack: () => 
               <MultiSelectFilter label="State" options={stateOptions} selected={stateFilter} onChange={setStateFilter} />
               <MultiSelectFilter label="Status" options={statusOptions} selected={statusFilter} onChange={setStatusFilter} />
               <MultiSelectFilter label="Is authorized" options={authOptions} selected={authFilter} onChange={setAuthFilter} />
+              <MultiSelectFilter label="Legal entity name" options={entityNameOptions} selected={entityNameFilter} onChange={setEntityNameFilter} />
+              <MultiSelectFilter label="Legal entity number" options={entityNumberOptions} selected={entityNumberFilter} onChange={setEntityNumberFilter} />
+              <MultiSelectFilter label="Namespace" options={namespaceOptions} selected={namespaceFilter} onChange={setNamespaceFilter} />
             </div>
             {hasActiveFilters && (
               <button onClick={clearAllFilters} className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors whitespace-nowrap">Clear all filters</button>
@@ -579,7 +596,7 @@ function DetailContent({ entity, onBack }: { entity: LegalEntity; onBack: () => 
                   <th className="w-10 px-4 py-3 text-left">
                     <input type="checkbox" checked={allChecked} onChange={toggleAll} className="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer" />
                   </th>
-                  {['Tax name', 'Status', 'Short name', 'State', 'Is authorized'].map(col => (
+                  {['Tax name', 'Legal entity name', 'Status', 'Short name', 'State', 'Is authorized'].map(col => (
                     <th key={col} className="px-3 py-3 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">{col}</th>
                   ))}
                 </tr>
@@ -602,6 +619,14 @@ function DetailContent({ entity, onBack }: { entity: LegalEntity; onBack: () => 
                           </p>
                         </div>
                       </div>
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap">
+                      <p className="text-[13px] text-slate-700">{entityById.get(row.entityId)?.name}</p>
+                      <p className="mt-0.5 text-xs font-mono text-slate-500">
+                        {entityById.get(row.entityId)?.federalId}
+                        <span className="mx-1.5 text-slate-300">|</span>
+                        <span className="italic text-slate-400">{entityById.get(row.entityId)?.namespace}</span>
+                      </p>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap"><TaxBadge status={row.status} /></td>
                     <td className="px-3 py-3 text-xs text-slate-600 font-mono whitespace-nowrap">{row.shortName}</td>
