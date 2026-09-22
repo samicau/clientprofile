@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 
 // ── Icon helper ────────────────────────────────────────────────
 function Ic({ d, size = 16, className = '', sw = 1.75 }: {
@@ -39,6 +39,7 @@ const I = {
   bookmark:    "M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0111.186 0z",
   clock:       "M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z",
   updown:      "M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9",
+  externalLink:"M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25",
 };
 
 // ── Types ──────────────────────────────────────────────────────
@@ -58,33 +59,18 @@ interface TaxRow {
   id: number; name: string; status: 'Active' | 'Incomplete';
   shortName: string; category: string; state: string;
   auth: string | null; rate: number | null; psd: string | null;
+  isAuthorized: boolean; taxCode: string; ctsCode: string;
 }
 
 interface StatDef {
   label: string; value: string | number; sub: string;
   icon: string; iconBg: string; iconColor: string; accent: string;
-  filter?: DashboardFilter;
 }
 
-type DashboardFilter = 'setup' | 'active' | 'incomplete';
-
-const DASHBOARD_FILTER_DETAILS: Record<DashboardFilter, { label: string; description: string; className: string }> = {
-  setup: {
-    label: 'Setup legal entities',
-    description: 'Showing legal entities in setup',
-    className: 'bg-blue-50 text-blue-700 border-blue-200',
-  },
-  active: {
-    label: 'Active legal entities',
-    description: 'Showing active legal entities',
-    className: 'bg-emerald-50 text-emerald-700 border-emerald-200',
-  },
-  incomplete: {
-    label: 'Incomplete tax codes',
-    description: 'Showing legal entities with incomplete tax codes',
-    className: 'bg-orange-50 text-orange-700 border-orange-200',
-  },
-};
+interface DashboardTaxCodeRow {
+  id: number; taxCode: string; taxCodeNumber: string; entityId: number;
+  addedDate: string; detailsOk: boolean; authRequired: boolean;
+}
 
 // ── Static data ────────────────────────────────────────────────
 const ENTITIES: LegalEntity[] = [
@@ -116,39 +102,45 @@ const ENTITIES: LegalEntity[] = [
 ];
 
 const TAX_ROWS: TaxRow[] = [
-  { id: 1,  name: 'Apple Creek Village (Wayne) - Withholding Tax',          status: 'Incomplete', shortName: 'APPLE CREEK VILLAGE RES',    category: 'Withholding Tax',            state: 'Ohio',    auth: 'Filing', rate: null, psd: null },
-  { id: 2,  name: 'Alabama State - Withholding Tax',                         status: 'Active',     shortName: 'AL SIT',                     category: 'Withholding Tax',            state: 'Alabama', auth: 'Filing', rate: null, psd: null },
-  { id: 3,  name: 'Alabama State - Employee Back Up Withholding',            status: 'Active',     shortName: 'AL BACKUP W/H',              category: 'Backup Withholding',         state: 'Alabama', auth: 'Filing', rate: null, psd: null },
-  { id: 4,  name: 'Alabama State - Employer Unemployment Tax',               status: 'Active',     shortName: 'AL SUI',                     category: 'Employer Unemployment Tax',  state: 'Alabama', auth: 'Filing', rate: 60.1, psd: null },
-  { id: 5,  name: 'Alabama State - Employer Security Assessment Tax',        status: 'Active',     shortName: 'AL SECURITY ASSESSMENT',     category: 'Employee Additional Medicare',state: 'Alabama', auth: 'Filing', rate: 64.1, psd: null },
-  { id: 6,  name: 'Attalla City (Etowah County) - Employee Occupational Tax',status: 'Active',     shortName: 'ATTALLA CITY TAX',           category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 81.1, psd: null },
-  { id: 7,  name: 'Auburn City (Lee County) - Employee Occupational Tax',    status: 'Active',     shortName: 'AUBURN',                     category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 67.1, psd: null },
-  { id: 8,  name: 'Bear Creek City (Marion County) - Employee Occupational Tax', status: 'Active', shortName: 'BEAR CREEK OCCUPATIONAL TAX', category: 'Employee Occupation Tax',   state: 'Alabama', auth: 'Filing', rate: 51.1, psd: null },
-  { id: 9,  name: 'Beaverton Town (Lamar County) - Employee Occupational Tax',status: 'Active',    shortName: 'BEAVERTON',                  category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 64.1, psd: null },
-  { id: 10, name: 'Bessemer City (Jefferson County) - Employee Occupational Tax', status: 'Active',shortName: 'BESSEMER',                   category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 47.1, psd: null },
+  { id: 1,  name: 'Apple Creek Village (Wayne) - Withholding Tax',          status: 'Incomplete', shortName: 'APPLE CREEK VILLAGE RES',    category: 'Withholding Tax',            state: 'Ohio',    auth: 'Filing', rate: null, psd: null, isAuthorized: false, taxCode: '39-0001-01', ctsCode: 'CTS-39001' },
+  { id: 2,  name: 'Alabama State - Withholding Tax',                         status: 'Active',     shortName: 'AL SIT',                     category: 'Withholding Tax',            state: 'Alabama', auth: 'Filing', rate: null, psd: null, isAuthorized: true, taxCode: '01-0002-01', ctsCode: 'CTS-01002' },
+  { id: 3,  name: 'Alabama State - Employee Back Up Withholding',            status: 'Active',     shortName: 'AL BACKUP W/H',              category: 'Backup Withholding',         state: 'Alabama', auth: 'Filing', rate: null, psd: null, isAuthorized: true, taxCode: '01-0003-01', ctsCode: 'CTS-01003' },
+  { id: 4,  name: 'Alabama State - Employer Unemployment Tax',               status: 'Active',     shortName: 'AL SUI',                     category: 'Employer Unemployment Tax',  state: 'Alabama', auth: 'Filing', rate: 60.1, psd: null, isAuthorized: true, taxCode: '01-0004-01', ctsCode: 'CTS-01004' },
+  { id: 5,  name: 'Alabama State - Employer Security Assessment Tax',        status: 'Active',     shortName: 'AL SECURITY ASSESSMENT',     category: 'Employee Additional Medicare',state: 'Alabama', auth: 'Filing', rate: 64.1, psd: null, isAuthorized: false, taxCode: '01-0005-01', ctsCode: 'CTS-01005' },
+  { id: 6,  name: 'Attalla City (Etowah County) - Employee Occupational Tax',status: 'Active',     shortName: 'ATTALLA CITY TAX',           category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 81.1, psd: null, isAuthorized: true, taxCode: '01-0006-01', ctsCode: 'CTS-01006' },
+  { id: 7,  name: 'Auburn City (Lee County) - Employee Occupational Tax',    status: 'Active',     shortName: 'AUBURN',                     category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 67.1, psd: null, isAuthorized: false, taxCode: '01-0007-01', ctsCode: 'CTS-01007' },
+  { id: 8,  name: 'Bear Creek City (Marion County) - Employee Occupational Tax', status: 'Active', shortName: 'BEAR CREEK OCCUPATIONAL TAX', category: 'Employee Occupation Tax',   state: 'Alabama', auth: 'Filing', rate: 51.1, psd: null, isAuthorized: true, taxCode: '01-0008-01', ctsCode: 'CTS-01008' },
+  { id: 9,  name: 'Beaverton Town (Lamar County) - Employee Occupational Tax',status: 'Active',    shortName: 'BEAVERTON',                  category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 64.1, psd: null, isAuthorized: false, taxCode: '01-0009-01', ctsCode: 'CTS-01009' },
+  { id: 10, name: 'Bessemer City (Jefferson County) - Employee Occupational Tax', status: 'Active',shortName: 'BESSEMER',                   category: 'Employee Occupation Tax',    state: 'Alabama', auth: 'Filing', rate: 47.1, psd: null, isAuthorized: true, taxCode: '01-0010-01', ctsCode: 'CTS-01010' },
+];
+
+const DASHBOARD_TAX_CODES: DashboardTaxCodeRow[] = ENTITIES.map((entity, i) => {
+  const code = TAX_ROWS[i % TAX_ROWS.length];
+  return {
+    id: entity.id,
+    taxCode: code.shortName,
+    taxCodeNumber: `USA-${(entity.id * 111).toString().padStart(8, '0')}-NR`,
+    entityId: entity.id,
+    addedDate: ['01/12/2025', '03/04/2025', '07/22/2025', '11/09/2025'][i % 4],
+    detailsOk: !entity.hasIncompleteTaxCodes,
+    authRequired: entity.id % 9 !== 0,
+  };
+});
+const TOTAL_DASHBOARD_TAX_CODES = 18536;
+
+const QUICK_LINKS: { label: string; icon: string }[] = [
+  { label: 'Getting started with Tax & Payments', icon: I.doc },
+  { label: 'Support portal',                      icon: I.shield },
+  { label: 'Community portal',                     icon: I.users },
+  { label: 'Agency requirements',                  icon: I.folder },
+  { label: 'Release notes',                        icon: I.bookmark },
 ];
 
 const STATS: StatDef[] = [
-  { label: 'Setup Legal Entities',        value: 12, sub: '3 added this quarter',        icon: I.building,    iconBg: 'bg-blue-50',   iconColor: 'text-blue-600',   accent: 'border-blue-500', filter: 'setup' },
-  { label: 'Total Active Legal Entities', value: 8,  sub: '67% of total entities',       icon: I.checkCircle, iconBg: 'bg-emerald-50',iconColor: 'text-emerald-600',accent: 'border-emerald-500', filter: 'active' },
-  { label: 'Incomplete Tax Codes',        value: 47, sub: 'Requires attention',          icon: I.warn,        iconBg: 'bg-orange-50', iconColor: 'text-orange-500', accent: 'border-orange-500', filter: 'incomplete' },
-  { label: 'States Covered',             value: 28, sub: 'Across all legal entities',   icon: I.globe,       iconBg: 'bg-violet-50', iconColor: 'text-violet-600', accent: 'border-violet-500' },
+  { label: 'Tax details missing',    value: DASHBOARD_TAX_CODES.filter(r => !r.detailsOk).length, sub: 'Setup information is missing', icon: I.doc,  iconBg: 'bg-rose-50',  iconColor: 'text-rose-500',  accent: 'border-rose-400' },
+  { label: 'Authorizations required', value: DASHBOARD_TAX_CODES.filter(r => r.authRequired).length, sub: 'For Dayforce to act on your behalf', icon: I.folder, iconBg: 'bg-rose-50', iconColor: 'text-rose-500', accent: 'border-rose-400' },
+  { label: 'Inactive tax codes',      value: 0, sub: 'Inactive with pending liabilities', icon: I.checkCircle, iconBg: 'bg-slate-50', iconColor: 'text-slate-400', accent: 'border-slate-300' },
 ];
-
-// ── Entity status badge ────────────────────────────────────────
-function EntityBadge({ status }: { status: LegalEntity['status'] }) {
-  const s: Record<LegalEntity['status'], string> = {
-    Setup:      'bg-blue-50 text-blue-700 border-blue-100',
-    Active:     'bg-emerald-50 text-emerald-700 border-emerald-100',
-    Terminated: 'bg-rose-50 text-rose-600 border-rose-100',
-    Suspended:  'bg-amber-50 text-amber-700 border-amber-100',
-  };
-  return (
-    <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${s[status]}`}>
-      {status}
-    </span>
-  );
-}
 
 // ── Tax status badge ───────────────────────────────────────────
 function TaxBadge({ status }: { status: 'Active' | 'Incomplete' }) {
@@ -196,116 +188,167 @@ function SortIc({ col, active, dir }: { col: string; active: boolean; dir: 'asc'
   );
 }
 
-// ── HOME PAGE ──────────────────────────────────────────────────
+// ── Multi-select autocomplete filter ────────────────────────────
+function MultiSelectFilter({ label, options, selected, onChange }: {
+  label: string; options: string[]; selected: string[]; onChange: (v: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  const filteredOptions = options.filter(o => o.toLowerCase().includes(query.toLowerCase()));
+  const toggleOption = (opt: string) => onChange(selected.includes(opt) ? selected.filter(s => s !== opt) : [...selected, opt]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" onClick={() => setOpen(o => !o)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${selected.length ? 'border-blue-300 text-blue-700 bg-blue-50' : 'border-slate-300 text-slate-700 bg-white hover:bg-slate-50'}`}>
+        {label}{selected.length > 0 && ` (${selected.length})`}
+        <Ic d={I.chevDown} size={11} />
+      </button>
+      {open && (
+        <div className="absolute z-10 mt-1 w-56 bg-white border border-slate-200 rounded-lg shadow-lg p-2">
+          <input value={query} onChange={e => setQuery(e.target.value)} placeholder={`Search ${label.toLowerCase()}…`}
+            className="w-full px-2 py-1 text-xs border border-slate-200 rounded mb-2 focus:outline-none focus:ring-1 focus:ring-blue-400 placeholder-slate-400" />
+          <div className="max-h-48 overflow-y-auto flex flex-col gap-0.5">
+            {filteredOptions.length === 0 && <p className="text-xs text-slate-400 px-2 py-1">No matches</p>}
+            {filteredOptions.map(opt => (
+              <label key={opt} className="flex items-center gap-2 px-2 py-1 rounded hover:bg-slate-50 cursor-pointer text-xs text-slate-700">
+                <input type="checkbox" checked={selected.includes(opt)} onChange={() => toggleOption(opt)}
+                  className="w-3.5 h-3.5 rounded border-slate-300 text-blue-600 cursor-pointer shrink-0" />
+                <span className="truncate">{opt}</span>
+              </label>
+            ))}
+          </div>
+          {selected.length > 0 && (
+            <button type="button" onClick={() => onChange([])}
+              className="w-full text-left text-xs font-medium text-blue-600 hover:text-blue-700 mt-1 px-2 py-1">
+              Clear
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── HOME PAGE (Tax & Payments Dashboard) ────────────────────────
 function HomePage({ onSelect }: { onSelect: (e: LegalEntity) => void }) {
   const [search, setSearch] = useState('');
-  const [dashboardFilter, setDashboardFilter] = useState<DashboardFilter | null>(null);
   const [showSearch, setShowSearch] = useState(false);
-  const [sortCol, setSortCol] = useState<keyof LegalEntity | null>(null);
+  const [customerFilter, setCustomerFilter] = useState<string[]>([]);
+  const [namespaceFilter, setNamespaceFilter] = useState<string[]>([]);
+  const [entityNameFilter, setEntityNameFilter] = useState<string[]>([]);
+  const [entityNumberFilter, setEntityNumberFilter] = useState<string[]>([]);
+  const [issuesFilter, setIssuesFilter] = useState<string[]>([]);
+  const [sortCol, setSortCol] = useState<'taxCode' | 'entity' | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [page, setPage] = useState(1);
-  const rowsPerPage = 25;
-  const TOTAL = 1484;
+  const rowsPerPage = 10;
 
-  const handleSort = (col: keyof LegalEntity) => {
+  const entityById = useMemo(() => new Map(ENTITIES.map(e => [e.id, e])), []);
+  const customerOptions = useMemo(() => [...new Set(ENTITIES.map(e => e.customerName))].sort((a, b) => a.localeCompare(b)), []);
+  const namespaceOptions = useMemo(() => [...new Set(ENTITIES.map(e => e.namespace))].sort((a, b) => a.localeCompare(b)), []);
+  const entityNameOptions = useMemo(() => [...new Set(ENTITIES.map(e => e.name))].sort((a, b) => a.localeCompare(b)), []);
+  const entityNumberOptions = useMemo(() => [...new Set(ENTITIES.map(e => e.federalId))].sort((a, b) => a.localeCompare(b)), []);
+  const issuesOptions = ['Details missing', 'Authorization required'];
+
+  const handleSort = (col: 'taxCode' | 'entity') => {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
     else { setSortCol(col); setSortDir('asc'); }
   };
 
   const displayed = useMemo(() => {
-    let rows = [...ENTITIES];
-    if (dashboardFilter === 'setup') rows = rows.filter(r => r.status === 'Setup');
-    if (dashboardFilter === 'active') rows = rows.filter(r => r.status === 'Active');
-    if (dashboardFilter === 'incomplete') rows = rows.filter(r => r.hasIncompleteTaxCodes);
-    if (search) rows = rows.filter(r =>
-      r.name.toLowerCase().includes(search.toLowerCase()) ||
-      r.customerName.toLowerCase().includes(search.toLowerCase()) ||
-      r.namespace.toLowerCase().includes(search.toLowerCase())
+    let rows = [...DASHBOARD_TAX_CODES];
+    if (customerFilter.length) rows = rows.filter(r => customerFilter.includes(entityById.get(r.entityId)?.customerName ?? ''));
+    if (namespaceFilter.length) rows = rows.filter(r => namespaceFilter.includes(entityById.get(r.entityId)?.namespace ?? ''));
+    if (entityNameFilter.length) rows = rows.filter(r => entityNameFilter.includes(entityById.get(r.entityId)?.name ?? ''));
+    if (entityNumberFilter.length) rows = rows.filter(r => entityNumberFilter.includes(entityById.get(r.entityId)?.federalId ?? ''));
+    if (issuesFilter.length) rows = rows.filter(r =>
+      (issuesFilter.includes('Details missing') && !r.detailsOk) ||
+      (issuesFilter.includes('Authorization required') && r.authRequired)
     );
+    if (search) rows = rows.filter(r => {
+      const entity = entityById.get(r.entityId);
+      return r.taxCode.toLowerCase().includes(search.toLowerCase()) ||
+        entity?.name.toLowerCase().includes(search.toLowerCase()) ||
+        entity?.customerName.toLowerCase().includes(search.toLowerCase()) ||
+        entity?.namespace.toLowerCase().includes(search.toLowerCase());
+    });
     if (sortCol) {
       rows.sort((a, b) => {
-        const av = String(a[sortCol]).toLowerCase();
-        const bv = String(b[sortCol]).toLowerCase();
+        const av = sortCol === 'taxCode' ? a.taxCode : (entityById.get(a.entityId)?.name ?? '');
+        const bv = sortCol === 'taxCode' ? b.taxCode : (entityById.get(b.entityId)?.name ?? '');
         return sortDir === 'asc' ? av.localeCompare(bv) : bv.localeCompare(av);
       });
     }
     return rows;
-  }, [dashboardFilter, search, sortCol, sortDir]);
+  }, [search, customerFilter, namespaceFilter, entityNameFilter, entityNumberFilter, issuesFilter, sortCol, sortDir, entityById]);
 
-  const toggleDashboardFilter = (filter: DashboardFilter) => {
-    setDashboardFilter(current => current === filter ? null : filter);
+  const hasActiveFilters = Boolean(search || customerFilter.length || namespaceFilter.length || entityNameFilter.length || entityNumberFilter.length || issuesFilter.length);
+  const clearAllFilters = () => {
+    setSearch(''); setCustomerFilter([]); setNamespaceFilter([]);
+    setEntityNameFilter([]); setEntityNumberFilter([]); setIssuesFilter([]);
     setPage(1);
   };
-
-  const activeFilter = dashboardFilter ? DASHBOARD_FILTER_DETAILS[dashboardFilter] : null;
-
-  const columns: { key: keyof LegalEntity; label: string }[] = [
-    { key: 'name',         label: 'Legal entity name' },
-    { key: 'federalId',    label: 'Federal/business ID' },
-    { key: 'customerName', label: 'Customer name' },
-    { key: 'namespace',    label: 'Namespace' },
-    { key: 'status',       label: 'Status' },
-  ];
 
   return (
     <div className="h-full flex flex-col bg-slate-50 font-sans overflow-hidden">
 
       {/* ── Top nav bar ── */}
-      <div className="shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl px-4 py-2">
-          <div className="w-7 h-7 bg-slate-800 rounded-lg flex items-center justify-center shrink-0">
-            <Ic d={I.briefcase} size={14} className="text-white" />
-          </div>
-          <span className="font-semibold text-slate-800 text-sm">Customer Profile</span>
+      <div className="shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center shrink-0">
+          <Ic d={I.doc} size={16} className="text-slate-700" />
         </div>
-        <div className="flex items-center gap-2">
-          <button className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
-            <Ic d={I.refresh} size={16} />
-          </button>
-          <button className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
-            <Ic d={I.bookmark} size={16} />
-          </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-            <Ic d={I.clock} size={14} />
-            Audit history
-          </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
-            <Ic d={I.plus} size={14} />
-            Add legal entity
-          </button>
-        </div>
+        <h1 className="text-base font-semibold text-slate-900">Tax &amp; Payments Dashboard</h1>
       </div>
 
-      {/* ── Dashboard stats ── */}
-      <div className="shrink-0 bg-white border-b border-slate-200 px-6 py-4">
-        <div className="flex items-center justify-between mb-3">
-          <div>
-            <p className="text-sm font-semibold text-slate-900">Legal Entity Overview</p>
-            <p className="text-xs text-slate-400 mt-0.5">Real-time summary across all configured entities</p>
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex items-start gap-4 mb-5">
+          {/* Stat cards */}
+          <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
+            {STATS.map(s => <StatCard key={s.label} s={s} active={false} />)}
           </div>
-          <span className="text-xs text-slate-400">Last updated: just now</span>
-        </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-          {STATS.map(s => <StatCard key={s.label} s={s} active={dashboardFilter === s.filter} onClick={s.filter ? () => toggleDashboardFilter(s.filter) : undefined} />)}
-        </div>
-      </div>
 
-      {/* ── Legal entities section ── */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="bg-white min-h-full">
+          {/* Quick links */}
+          <div className="w-64 shrink-0 bg-white rounded-xl border border-slate-200 shadow-sm p-4">
+            <p className="text-sm font-semibold text-slate-900 mb-2">Quick links</p>
+            <ul className="flex flex-col gap-2">
+              {QUICK_LINKS.map(link => (
+                <li key={link.label}>
+                  <button className="w-full flex items-center gap-2 text-left text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
+                    <Ic d={link.icon} size={14} className="shrink-0" />
+                    <span className="flex-1">{link.label}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
 
-          {/* Heading + search */}
-          <div className="flex items-center justify-between px-6 pt-5 pb-3">
-            <h1 className="text-xl font-bold text-slate-900">Legal entities</h1>
+        {/* Table card */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+
+          {/* Heading + search + create case */}
+          <div className="flex items-center justify-between px-5 py-4">
+            <h2 className="text-sm font-semibold text-slate-900">{TOTAL_DASHBOARD_TAX_CODES.toLocaleString()} tax codes need attention</h2>
             <div className="flex items-center gap-2">
               {showSearch && (
                 <div className="relative">
                   <Ic d={I.search} size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
                   <input
-                    autoFocus
                     value={search}
                     onChange={e => setSearch(e.target.value)}
-                    placeholder="Search entities…"
+                    placeholder="Search tax codes…"
                     className="pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg w-48 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 placeholder-slate-400"
                   />
                 </div>
@@ -314,96 +357,99 @@ function HomePage({ onSelect }: { onSelect: (e: LegalEntity) => void }) {
                 className="w-8 h-8 flex items-center justify-center text-slate-500 hover:bg-slate-100 rounded-lg transition-colors">
                 <Ic d={I.search} size={16} />
               </button>
+              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-blue-600 text-sm font-medium text-white hover:bg-blue-700 transition-colors">
+                Create case
+                <Ic d={I.externalLink} size={13} />
+              </button>
             </div>
           </div>
 
           {/* Filter pills */}
-          <div className="flex items-center justify-between px-6 pb-3">
+          <div className="flex items-center justify-between px-5 pb-3">
             <div className="flex items-center gap-2 flex-wrap">
-              {['Legal entity name', 'Federal/business ID', 'Customer name/Namespace', 'Status'].map(f => (
-                <button key={f}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-300 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 transition-colors">
-                  {f}
-                  <Ic d={I.chevDown} size={11} />
-                </button>
-              ))}
+              <MultiSelectFilter label="Legal entity name" options={entityNameOptions} selected={entityNameFilter} onChange={v => { setEntityNameFilter(v); setPage(1); }} />
+              <MultiSelectFilter label="Legal entity number" options={entityNumberOptions} selected={entityNumberFilter} onChange={v => { setEntityNumberFilter(v); setPage(1); }} />
+              <MultiSelectFilter label="Issues" options={issuesOptions} selected={issuesFilter} onChange={v => { setIssuesFilter(v); setPage(1); }} />
+              <MultiSelectFilter label="Customer name" options={customerOptions} selected={customerFilter} onChange={v => { setCustomerFilter(v); setPage(1); }} />
+              <MultiSelectFilter label="Namespace" options={namespaceOptions} selected={namespaceFilter} onChange={v => { setNamespaceFilter(v); setPage(1); }} />
             </div>
-            {(dashboardFilter || search) && (
-              <button onClick={() => { setDashboardFilter(null); setSearch(''); setPage(1); }}
+            {hasActiveFilters && (
+              <button onClick={clearAllFilters}
                 className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors whitespace-nowrap">
-                Clear filters
+                Clear all filters
               </button>
             )}
           </div>
-
-          {activeFilter && (
-            <div className="flex items-center gap-2 px-6 pb-3">
-              <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium ${activeFilter.className}`}>
-                {dashboardFilter === 'incomplete' && <Ic d={I.warn} size={12} />}
-                {activeFilter.label}
-                <button
-                  type="button"
-                  onClick={() => { setDashboardFilter(null); setPage(1); }}
-                  aria-label={`Remove ${activeFilter.label} filter`}
-                  className="ml-0.5 rounded-sm hover:bg-black/10 focus:outline-none focus-visible:ring-1 focus-visible:ring-current"
-                >
-                  ×
-                </button>
-              </span>
-              <p className="text-xs text-slate-500">{activeFilter.description} ({displayed.length})</p>
-            </div>
-          )}
 
           {/* Table */}
           <div className="overflow-x-auto border-t border-slate-100">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50/60">
-                  {columns.map(col => (
-                    <th key={col.key}
-                      onClick={() => handleSort(col.key)}
-                      className="px-6 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer hover:text-slate-900 whitespace-nowrap select-none">
-                      <span className="inline-flex items-center">
-                        {col.label}
-                        <SortIc col={col.key} active={sortCol === col.key} dir={sortDir} />
-                      </span>
-                    </th>
-                  ))}
+                  <th onClick={() => handleSort('taxCode')}
+                    className="px-6 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer hover:text-slate-900 whitespace-nowrap select-none">
+                    <span className="inline-flex items-center">Tax code<SortIc col="taxCode" active={sortCol === 'taxCode'} dir={sortDir} /></span>
+                  </th>
+                  <th onClick={() => handleSort('entity')}
+                    className="px-6 py-3 text-left text-xs font-semibold text-slate-600 cursor-pointer hover:text-slate-900 whitespace-nowrap select-none">
+                    <span className="inline-flex items-center">Legal entity<SortIc col="entity" active={sortCol === 'entity'} dir={sortDir} /></span>
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">Customer name</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">Namespace</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">Added date</th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold text-slate-600 whitespace-nowrap">Issues</th>
                 </tr>
               </thead>
               <tbody>
-                {displayed.map(entity => (
-                  <tr key={entity.id}
-                    className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition-colors">
-                    <td className="px-6 py-3">
-                      <button
-                        onClick={() => onSelect(entity)}
-                        className="text-blue-600 hover:underline text-left font-medium text-[13px]">
-                        {entity.name}
-                      </button>
-                    </td>
-                    <td className="px-6 py-3 text-[13px] text-slate-600 whitespace-nowrap">{entity.federalId}</td>
-                    <td className="px-6 py-3 text-[13px] text-slate-600">{entity.customerName}</td>
-                    <td className="px-6 py-3 text-[13px] text-slate-500">{entity.namespace}</td>
-                    <td className="px-6 py-3">
-                      <EntityBadge status={entity.status} />
-                    </td>
-                  </tr>
-                ))}
+                {displayed.map(row => {
+                  const entity = entityById.get(row.entityId);
+                  if (!entity) return null;
+                  return (
+                    <tr key={row.id} className="border-b border-slate-100 last:border-0 hover:bg-slate-50/80 transition-colors">
+                      <td className="px-6 py-3">
+                        <button onClick={() => onSelect(entity)} className="text-blue-600 hover:underline text-left font-medium text-[13px]">
+                          {row.taxCode}
+                        </button>
+                        <p className="text-xs text-slate-400 mt-0.5">{row.taxCodeNumber}</p>
+                      </td>
+                      <td className="px-6 py-3">
+                        <p className="text-[13px] text-slate-700">{entity.name}</p>
+                        <p className="text-xs text-slate-400 mt-0.5">{entity.federalId}</p>
+                      </td>
+                      <td className="px-6 py-3 text-[13px] text-slate-600">{entity.customerName}</td>
+                      <td className="px-6 py-3 text-[13px] text-slate-500">{entity.namespace}</td>
+                      <td className="px-6 py-3 text-[13px] text-slate-600 whitespace-nowrap">{row.addedDate}</td>
+                      <td className="px-6 py-3">
+                        <div className="flex flex-col gap-1 items-start">
+                          {row.detailsOk && (
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
+                              <Ic d={I.check} size={11} className="shrink-0" />Details
+                            </span>
+                          )}
+                          {row.authRequired && (
+                            <span className="inline-flex items-center gap-1 text-xs font-medium text-orange-600">
+                              <Ic d={I.warn} size={11} className="shrink-0" />Authorization
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           {/* Pagination */}
-          <div className="flex items-center justify-between px-6 py-3 border-t border-slate-100 bg-slate-50/50">
+          <div className="flex items-center justify-between px-5 py-3 border-t border-slate-100 bg-slate-50/50">
             <p className="text-xs text-slate-500">
-              Showing {(page - 1) * rowsPerPage + 1}–{Math.min(page * rowsPerPage, TOTAL)} of {TOTAL.toLocaleString()}
+              Showing {(page - 1) * rowsPerPage + 1}–{Math.min(page * rowsPerPage, displayed.length)} of {displayed.length.toLocaleString()}
             </p>
             <div className="flex items-center gap-4">
               <div className="flex items-center gap-2">
                 <span className="text-xs text-slate-500">Rows per page</span>
                 <select className="text-xs border border-slate-200 rounded px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400">
-                  <option>25</option><option>50</option><option>100</option>
+                  <option>10</option><option>25</option><option>50</option>
                 </select>
               </div>
               <div className="flex items-center gap-1.5">
@@ -415,7 +461,7 @@ function HomePage({ onSelect }: { onSelect: (e: LegalEntity) => void }) {
                   <span className="text-xs text-slate-500">Page</span>
                   <select value={page} onChange={e => setPage(Number(e.target.value))}
                     className="text-xs border border-slate-200 rounded px-2 py-1 bg-white text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-400">
-                    {Array.from({ length: Math.ceil(TOTAL / rowsPerPage) }, (_, i) => (
+                    {Array.from({ length: Math.max(1, Math.ceil(displayed.length / rowsPerPage)) }, (_, i) => (
                       <option key={i + 1} value={i + 1}>{i + 1}</option>
                     ))}
                   </select>
@@ -434,84 +480,42 @@ function HomePage({ onSelect }: { onSelect: (e: LegalEntity) => void }) {
   );
 }
 
-// ── DETAIL PAGE sidebar ────────────────────────────────────────
-type NavItem =
-  | { type: 'section'; label: string; icon: string; badge?: number; children: { label: string; badge?: number; active?: boolean }[] }
-  | { type: 'item'; label: string; icon: string };
-
-const NAV: NavItem[] = [
-  { type: 'section', label: 'General', icon: I.building, children: [{ label: 'About' }, { label: 'Addresses' }, { label: 'Contacts' }] },
-  { type: 'item', label: 'Banking', icon: I.bank },
-  { type: 'item', label: 'Payrolls', icon: I.users },
-  { type: 'section', label: 'Products', icon: I.cube, children: [{ label: 'Benefits' }, { label: 'Compensation' }] },
-  { type: 'section', label: 'Tax profiles', icon: I.dollar, badge: 1, children: [{ label: 'Federal' }, { label: 'State and local', badge: 1, active: true }] },
-  { type: 'item', label: 'Contract', icon: I.doc },
-  { type: 'item', label: 'Documents', icon: I.folder },
-  { type: 'item', label: 'Audit', icon: I.shield },
-];
-
-function Sidebar() {
-  const [expanded, setExpanded] = useState<Record<string, boolean>>({ General: true, Products: false, 'Tax profiles': true });
-  const toggle = (label: string) => setExpanded(p => ({ ...p, [label]: !p[label] }));
-
-  return (
-    <aside className="w-56 shrink-0 bg-white border-r border-slate-200 overflow-y-auto">
-      <div className="px-4 pt-5 pb-3">
-        <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Legal entity profile</p>
-      </div>
-      <nav className="pb-4">
-        {NAV.map(item => {
-          if (item.type === 'item') {
-            return (
-              <button key={item.label} className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-900 transition-colors">
-                <Ic d={item.icon} size={16} className="text-slate-400 shrink-0" />
-                <span>{item.label}</span>
-              </button>
-            );
-          }
-          const isOpen = expanded[item.label] ?? false;
-          return (
-            <div key={item.label}>
-              <button onClick={() => toggle(item.label)}
-                className="w-full flex items-center gap-2.5 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-                <Ic d={item.icon} size={16} className={item.label === 'Tax profiles' ? 'text-blue-600 shrink-0' : 'text-slate-400 shrink-0'} />
-                <span className="flex-1 text-left font-medium">{item.label}</span>
-                {item.badge != null && (
-                  <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-semibold flex items-center justify-center leading-none mr-1">{item.badge}</span>
-                )}
-                <Ic d={isOpen ? I.chevUp : I.chevDown} size={14} className="text-slate-400 shrink-0" />
-              </button>
-              {isOpen && item.children.map(child => (
-                <button key={child.label}
-                  className={`w-full flex items-center gap-2 pl-9 pr-4 py-1.5 text-sm transition-colors ${child.active ? 'bg-blue-50 text-blue-700 font-medium' : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'}`}>
-                  <span className="flex-1 text-left">{child.label}</span>
-                  {child.badge != null && (
-                    <span className="w-4 h-4 rounded-full bg-blue-600 text-white text-[10px] font-semibold flex items-center justify-center leading-none">{child.badge}</span>
-                  )}
-                </button>
-              ))}
-            </div>
-          );
-        })}
-      </nav>
-    </aside>
-  );
-}
-
 // ── DETAIL PAGE main content ───────────────────────────────────
 function DetailContent({ entity, onBack }: { entity: LegalEntity; onBack: () => void }) {
-  const [activeTab, setActiveTab] = useState<'added' | 'supported'>('added');
-  const [search, setSearch] = useState('');
+  const [nameFilter, setNameFilter] = useState<string[]>([]);
+  const [taxCodeFilter, setTaxCodeFilter] = useState<string[]>([]);
+  const [stateFilter, setStateFilter] = useState<string[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [page, setPage] = useState(1);
+  const [authorized, setAuthorized] = useState<Record<number, boolean>>(
+    () => Object.fromEntries(TAX_ROWS.map(r => [r.id, r.isAuthorized]))
+  );
+  const toggleAuthorized = (id: number) => {
+    setAuthorized(p => ({ ...p, [id]: !p[id] }));
+    setSaved(false);
+  };
+  const [saved, setSaved] = useState(false);
+  const handleSubmit = () => {
+    if (window.confirm('All these changes will be saved. Are you sure?')) {
+      setSaved(true);
+    }
+  };
 
   const TOTAL = 10625;
-  const SUPPORTED = 10819;
 
   const toggleRow = (id: number) => setSelected(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
   const allChecked = selected.length === TAX_ROWS.length;
   const toggleAll = () => setSelected(allChecked ? [] : TAX_ROWS.map(r => r.id));
-  const filtered = search ? TAX_ROWS.filter(r => r.name.toLowerCase().includes(search.toLowerCase())) : TAX_ROWS;
+  const nameOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => r.name))].sort((a, b) => a.localeCompare(b)), []);
+  const taxCodeOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => r.taxCode))].sort((a, b) => a.localeCompare(b)), []);
+  const stateOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => r.state))].sort((a, b) => a.localeCompare(b)), []);
+  const filtered = TAX_ROWS.filter(r =>
+    (nameFilter.length === 0 || nameFilter.includes(r.name)) &&
+    (taxCodeFilter.length === 0 || taxCodeFilter.includes(r.taxCode)) &&
+    (stateFilter.length === 0 || stateFilter.includes(r.state))
+  );
+  const hasActiveFilters = Boolean(nameFilter.length || taxCodeFilter.length || stateFilter.length);
+  const clearAllFilters = () => { setNameFilter([]); setTaxCodeFilter([]); setStateFilter([]); };
 
   return (
     <div className="flex-1 overflow-y-auto bg-slate-50">
@@ -529,21 +533,6 @@ function DetailContent({ entity, onBack }: { entity: LegalEntity; onBack: () => 
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="flex border-b border-slate-200 mb-5 bg-white">
-          <div className="flex gap-0 px-1">
-            {[
-              { key: 'added' as const,     label: `Tax codes added (${TOTAL.toLocaleString()})` },
-              { key: 'supported' as const, label: `All supported tax codes (${SUPPORTED.toLocaleString()})` },
-            ].map(tab => (
-              <button key={tab.key} onClick={() => setActiveTab(tab.key)}
-                className={`px-4 py-3 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.key ? 'border-slate-900 text-slate-900' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
-                {tab.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
         {/* Table card */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
 
@@ -551,25 +540,20 @@ function DetailContent({ entity, onBack }: { entity: LegalEntity; onBack: () => 
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
             <h3 className="text-sm font-semibold text-slate-900">State &amp; Local tax codes added</h3>
             <div className="flex items-center gap-2">
-              <div className="relative">
-                <Ic d={I.search} size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search for tax name"
-                  className="pl-8 pr-3 py-1.5 text-sm border border-slate-200 rounded-lg w-52 focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-400 placeholder-slate-400" />
-              </div>
               <button className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 transition-colors"><Ic d={I.funnel} size={14} /></button>
-              <button className="w-8 h-8 flex items-center justify-center border border-slate-200 rounded-lg text-slate-500 hover:bg-slate-50 transition-colors"><Ic d={I.trash} size={14} /></button>
-              <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-slate-300 text-sm font-medium text-slate-700 hover:bg-slate-50 transition-colors">
-                <Ic d={I.plus} size={14} />Add tax code
-              </button>
             </div>
           </div>
 
           {/* Filter row */}
           <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-slate-50/60">
-            <button className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-slate-300 text-xs font-medium text-slate-700 bg-white hover:bg-slate-50 transition-colors">
-              State<Ic d={I.chevDown} size={11} />
-            </button>
-            <button className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">Clear all filters</button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <MultiSelectFilter label="Tax name" options={nameOptions} selected={nameFilter} onChange={setNameFilter} />
+              <MultiSelectFilter label="Tax code" options={taxCodeOptions} selected={taxCodeFilter} onChange={setTaxCodeFilter} />
+              <MultiSelectFilter label="State" options={stateOptions} selected={stateFilter} onChange={setStateFilter} />
+            </div>
+            {hasActiveFilters && (
+              <button onClick={clearAllFilters} className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors whitespace-nowrap">Clear all filters</button>
+            )}
           </div>
 
           {/* Table */}
@@ -580,7 +564,7 @@ function DetailContent({ entity, onBack }: { entity: LegalEntity; onBack: () => 
                   <th className="w-10 px-4 py-3 text-left">
                     <input type="checkbox" checked={allChecked} onChange={toggleAll} className="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer" />
                   </th>
-                  {['Tax name', 'Status', 'Short name', 'Category', 'State', 'Authorizations', 'Tax rate', 'PSD code'].map(col => (
+                  {['Tax name', 'Status', 'Short name', 'Tax code', 'CTS code', 'State', 'Is authorized'].map(col => (
                     <th key={col} className="px-3 py-3 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">{col}</th>
                   ))}
                 </tr>
@@ -599,17 +583,18 @@ function DetailContent({ entity, onBack }: { entity: LegalEntity; onBack: () => 
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap"><TaxBadge status={row.status} /></td>
                     <td className="px-3 py-3 text-xs text-slate-600 font-mono whitespace-nowrap">{row.shortName}</td>
-                    <td className="px-3 py-3 text-[13px] text-slate-600 whitespace-nowrap">{row.category}</td>
+                    <td className="px-3 py-3 text-xs text-slate-600 font-mono whitespace-nowrap">{row.taxCode}</td>
+                    <td className="px-3 py-3 text-xs text-slate-600 font-mono whitespace-nowrap">{row.ctsCode}</td>
                     <td className="px-3 py-3 text-[13px] text-slate-600 whitespace-nowrap">{row.state}</td>
                     <td className="px-3 py-3 whitespace-nowrap">
-                      {row.auth && (
-                        <span className="inline-flex items-center gap-1 text-[13px] text-slate-700">
-                          <Ic d={I.check} size={13} className="text-teal-600 shrink-0" />{row.auth}
-                        </span>
-                      )}
+                      <button
+                        role="switch"
+                        aria-checked={authorized[row.id]}
+                        onClick={() => toggleAuthorized(row.id)}
+                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${authorized[row.id] ? 'bg-blue-600' : 'bg-slate-300'}`}>
+                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${authorized[row.id] ? 'translate-x-4.5' : 'translate-x-1'}`} />
+                      </button>
                     </td>
-                    <td className="px-3 py-3 text-[13px] text-slate-600 whitespace-nowrap">{row.rate ?? ''}</td>
-                    <td className="px-3 py-3 text-[13px] text-slate-600">{row.psd ?? ''}</td>
                   </tr>
                 ))}
               </tbody>
@@ -648,6 +633,15 @@ function DetailContent({ entity, onBack }: { entity: LegalEntity; onBack: () => 
             </div>
           </div>
         </div>
+
+        {/* Submit */}
+        <div className="flex items-center justify-end gap-3 mt-5">
+          {saved && <span className="text-xs text-emerald-600 font-medium">Changes saved</span>}
+          <button onClick={handleSubmit}
+            className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">
+            Submit
+          </button>
+        </div>
       </div>
     </div>
   );
@@ -657,10 +651,7 @@ function DetailContent({ entity, onBack }: { entity: LegalEntity; onBack: () => 
 function DetailPage({ entity, onBack }: { entity: LegalEntity; onBack: () => void }) {
   return (
     <div className="h-full flex flex-col bg-slate-50 font-sans overflow-hidden">
-      <div className="flex flex-1 overflow-hidden">
-        <Sidebar />
-        <DetailContent entity={entity} onBack={onBack} />
-      </div>
+      <DetailContent entity={entity} onBack={onBack} />
     </div>
   );
 }
