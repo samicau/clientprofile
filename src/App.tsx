@@ -242,7 +242,7 @@ function MultiSelectFilter({ label, options, selected, onChange }: {
 }
 
 // ── HOME PAGE (Tax & Payments Dashboard) ────────────────────────
-function HomePage({ onSelect }: { onSelect: (e: LegalEntity) => void }) {
+function HomePage({ onSelect, onManageAuthorizations }: { onSelect: (e: LegalEntity) => void; onManageAuthorizations: () => void }) {
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
   const [customerFilter, setCustomerFilter] = useState<string[]>([]);
@@ -360,7 +360,7 @@ function HomePage({ onSelect }: { onSelect: (e: LegalEntity) => void }) {
                 Create case
                 <Ic d={I.externalLink} size={13} />
               </button>
-              <button onClick={() => onSelect(ENTITIES[0])}
+              <button onClick={onManageAuthorizations}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-orange-300 bg-orange-50 text-sm font-medium text-orange-700 hover:bg-orange-100 transition-colors">
                 <Ic d={I.shield} size={14} />
                 Manage Authorizations
@@ -487,14 +487,16 @@ function HomePage({ onSelect }: { onSelect: (e: LegalEntity) => void }) {
 }
 
 // ── DETAIL PAGE main content ───────────────────────────────────
-function DetailContent({ entity, onBack }: { entity: LegalEntity; onBack: () => void }) {
+function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entity: LegalEntity; onBack: () => void; preselectEntityFilter?: boolean }) {
   const [nameFilter, setNameFilter] = useState<string[]>([]);
   const [taxCodeFilter, setTaxCodeFilter] = useState<string[]>([]);
   const [stateFilter, setStateFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [authFilter, setAuthFilter] = useState<string[]>([]);
   const [entityNameFilter, setEntityNameFilter] = useState<string[]>([]);
-  const [entityNumberFilter, setEntityNumberFilter] = useState<string[]>([entity.federalId]);
+  const [entityNumberFilter, setEntityNumberFilter] = useState<string[]>(
+    preselectEntityFilter ? [entity.federalId] : []
+  );
   const [namespaceFilter, setNamespaceFilter] = useState<string[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [page, setPage] = useState(1);
@@ -692,10 +694,10 @@ function DetailContent({ entity, onBack }: { entity: LegalEntity; onBack: () => 
 }
 
 // ── DETAIL PAGE wrapper ────────────────────────────────────────
-function DetailPage({ entity, onBack }: { entity: LegalEntity; onBack: () => void }) {
+function DetailPage({ entity, onBack, preselectEntityFilter = true }: { entity: LegalEntity; onBack: () => void; preselectEntityFilter?: boolean }) {
   return (
     <div className="h-full flex flex-col bg-slate-50 font-sans overflow-hidden">
-      <DetailContent entity={entity} onBack={onBack} />
+      <DetailContent entity={entity} onBack={onBack} preselectEntityFilter={preselectEntityFilter} />
     </div>
   );
 }
@@ -704,9 +706,15 @@ function DetailPage({ entity, onBack }: { entity: LegalEntity; onBack: () => voi
 export default function App() {
   const [view, setView] = useState<View>('home');
   const [entity, setEntity] = useState<LegalEntity | null>(null);
+  const [preselectEntityFilter, setPreselectEntityFilter] = useState(true);
 
   if (view === 'detail' && entity) {
-    return <DetailPage entity={entity} onBack={() => setView('home')} />;
+    return <DetailPage entity={entity} onBack={() => setView('home')} preselectEntityFilter={preselectEntityFilter} />;
   }
-  return <HomePage onSelect={e => { setEntity(e); setView('detail'); }} />;
+  return (
+    <HomePage
+      onSelect={e => { setEntity(e); setPreselectEntityFilter(true); setView('detail'); }}
+      onManageAuthorizations={() => { setEntity(ENTITIES[0]); setPreselectEntityFilter(false); setView('detail'); }}
+    />
+  );
 }
