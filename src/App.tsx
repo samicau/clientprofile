@@ -138,8 +138,8 @@ const QUICK_LINKS: { label: string; icon: string }[] = [
 
 const STATS: StatDef[] = [
   { label: 'Tax details missing',    value: DASHBOARD_TAX_CODES.filter(r => !r.detailsOk).length, sub: 'Setup information is missing', icon: I.doc,  iconBg: 'bg-rose-50',  iconColor: 'text-rose-500',  accent: 'border-rose-400' },
-  { label: 'Authorizations required', value: DASHBOARD_TAX_CODES.filter(r => r.authRequired).length, sub: 'For Dayforce to act on your behalf', icon: I.folder, iconBg: 'bg-rose-50', iconColor: 'text-rose-500', accent: 'border-rose-400' },
   { label: 'Inactive tax codes',      value: 0, sub: 'Inactive with pending liabilities', icon: I.checkCircle, iconBg: 'bg-slate-50', iconColor: 'text-slate-400', accent: 'border-slate-300' },
+  { label: 'Authorizations required', value: DASHBOARD_TAX_CODES.filter(r => r.authRequired).length, sub: 'For Dayforce to act on your behalf', icon: I.folder, iconBg: 'bg-rose-50', iconColor: 'text-rose-500', accent: 'border-rose-400' },
 ];
 
 // ── Tax status badge ───────────────────────────────────────────
@@ -305,33 +305,32 @@ function HomePage({ onSelect }: { onSelect: (e: LegalEntity) => void }) {
     <div className="h-full flex flex-col bg-slate-50 font-sans overflow-hidden">
 
       {/* ── Top nav bar ── */}
-      <div className="shrink-0 bg-white border-b border-slate-200 px-6 py-3 flex items-center gap-3">
-        <div className="w-9 h-9 rounded-full border border-slate-200 flex items-center justify-center shrink-0">
-          <Ic d={I.doc} size={16} className="text-slate-700" />
+      <div className="shrink-0 bg-white border-b border-slate-200 px-6 py-3.5 flex items-center gap-3">
+        <div className="w-9 h-9 rounded-full bg-slate-900 flex items-center justify-center shrink-0">
+          <Ic d={I.doc} size={16} className="text-white" />
         </div>
         <h1 className="text-base font-semibold text-slate-900">Tax &amp; Payments Dashboard</h1>
       </div>
 
       <div className="flex-1 overflow-y-auto p-6">
-        <div className="flex items-start gap-4 mb-5">
-          {/* Stat cards */}
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {STATS.map(s => <StatCard key={s.label} s={s} active={false} />)}
-          </div>
+        {/* Stat cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
+          {STATS.map(s => <StatCard key={s.label} s={s} active={false} />)}
+        </div>
 
-          {/* Quick links */}
-          <div className="w-64 shrink-0 bg-white rounded-xl border border-slate-200 shadow-sm p-4">
-            <p className="text-sm font-semibold text-slate-900 mb-2">Quick links</p>
-            <ul className="flex flex-col gap-2">
-              {QUICK_LINKS.map(link => (
-                <li key={link.label}>
-                  <button className="w-full flex items-center gap-2 text-left text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors">
-                    <Ic d={link.icon} size={14} className="shrink-0" />
-                    <span className="flex-1">{link.label}</span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+        {/* Quick links */}
+        <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-4 py-3 mb-5 flex items-center gap-4 overflow-x-auto">
+          <p className="text-sm font-semibold text-slate-900 shrink-0">Quick links</p>
+          <div className="flex items-center gap-2 flex-wrap">
+            {QUICK_LINKS.map(link => (
+              <button key={link.label}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors shrink-0">
+                <span className="w-5 h-5 rounded-full bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                  <Ic d={link.icon} size={11} />
+                </span>
+                <span className="text-xs font-medium text-slate-700 whitespace-nowrap">{link.label}</span>
+              </button>
+            ))}
           </div>
         </div>
 
