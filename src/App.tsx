@@ -65,6 +65,7 @@ interface TaxRow {
 interface StatDef {
   label: string; value: string | number; sub: string;
   icon: string; iconBg: string; iconColor: string; accent: string;
+  filter: string;
 }
 
 interface DashboardTaxCodeRow {
@@ -137,9 +138,9 @@ const QUICK_LINKS: { label: string; icon: string }[] = [
 ];
 
 const STATS: StatDef[] = [
-  { label: 'Tax details missing',    value: DASHBOARD_TAX_CODES.filter(r => !r.detailsOk).length, sub: 'Setup information is missing', icon: I.doc,  iconBg: 'bg-rose-50',  iconColor: 'text-rose-500',  accent: 'border-rose-400' },
-  { label: 'Inactive tax codes',      value: 0, sub: 'Inactive with pending liabilities', icon: I.checkCircle, iconBg: 'bg-slate-50', iconColor: 'text-slate-400', accent: 'border-slate-300' },
-  { label: 'Authorizations required', value: DASHBOARD_TAX_CODES.filter(r => r.authRequired).length, sub: 'For Dayforce to act on your behalf', icon: I.folder, iconBg: 'bg-rose-50', iconColor: 'text-rose-500', accent: 'border-rose-400' },
+  { label: 'Tax details missing',    value: DASHBOARD_TAX_CODES.filter(r => !r.detailsOk).length, sub: 'Setup information is missing', icon: I.doc,  iconBg: 'bg-rose-50',  iconColor: 'text-rose-500',  accent: 'border-rose-400', filter: 'Details missing' },
+  { label: 'Inactive tax codes',      value: DASHBOARD_TAX_CODES.filter(r => ENTITIES.find(e => e.id === r.entityId)?.status !== 'Active').length, sub: 'Inactive with pending liabilities', icon: I.checkCircle, iconBg: 'bg-slate-50', iconColor: 'text-slate-400', accent: 'border-slate-300', filter: 'Inactive' },
+  { label: 'Authorizations required', value: DASHBOARD_TAX_CODES.filter(r => r.authRequired).length, sub: 'For Dayforce to act on your behalf', icon: I.folder, iconBg: 'bg-rose-50', iconColor: 'text-rose-500', accent: 'border-rose-400', filter: 'Authorization required' },
 ];
 
 // ── Tax status badge ───────────────────────────────────────────
@@ -260,7 +261,7 @@ function HomePage({ onSelect, onManageAuthorizations }: { onSelect: (e: LegalEnt
   const namespaceOptions = useMemo(() => [...new Set(ENTITIES.map(e => e.namespace))].sort((a, b) => a.localeCompare(b)), []);
   const entityNameOptions = useMemo(() => [...new Set(ENTITIES.map(e => e.name))].sort((a, b) => a.localeCompare(b)), []);
   const entityNumberOptions = useMemo(() => [...new Set(ENTITIES.map(e => e.federalId))].sort((a, b) => a.localeCompare(b)), []);
-  const issuesOptions = ['Details missing', 'Authorization required'];
+  const issuesOptions = ['Details missing', 'Inactive', 'Authorization required'];
 
   const handleSort = (col: 'taxCode' | 'entity') => {
     if (sortCol === col) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -275,6 +276,7 @@ function HomePage({ onSelect, onManageAuthorizations }: { onSelect: (e: LegalEnt
     if (entityNumberFilter.length) rows = rows.filter(r => entityNumberFilter.includes(entityById.get(r.entityId)?.federalId ?? ''));
     if (issuesFilter.length) rows = rows.filter(r =>
       (issuesFilter.includes('Details missing') && !r.detailsOk) ||
+      (issuesFilter.includes('Inactive') && entityById.get(r.entityId)?.status !== 'Active') ||
       (issuesFilter.includes('Authorization required') && r.authRequired)
     );
     if (search) rows = rows.filter(r => {
@@ -300,6 +302,10 @@ function HomePage({ onSelect, onManageAuthorizations }: { onSelect: (e: LegalEnt
     setEntityNameFilter([]); setEntityNumberFilter([]); setIssuesFilter([]);
     setPage(1);
   };
+  const toggleStatFilter = (filter: string) => {
+    setIssuesFilter(current => current.includes(filter) ? [] : [filter]);
+    setPage(1);
+  };
 
   return (
     <div className="h-full flex flex-col bg-slate-50 font-sans overflow-hidden">
@@ -315,7 +321,7 @@ function HomePage({ onSelect, onManageAuthorizations }: { onSelect: (e: LegalEnt
       <div className="flex-1 overflow-y-auto p-6">
         {/* Stat cards */}
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
-          {STATS.map(s => <StatCard key={s.label} s={s} active={false} />)}
+          {STATS.map(s => <StatCard key={s.label} s={s} active={issuesFilter.includes(s.filter)} onClick={() => toggleStatFilter(s.filter)} />)}
         </div>
 
         {/* Quick links */}
