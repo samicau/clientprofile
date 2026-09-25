@@ -40,6 +40,7 @@ const I = {
   clock:       "M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z",
   updown:      "M8.25 15L12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9",
   externalLink:"M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25",
+  info:        "M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z",
 };
 
 // ── Types ──────────────────────────────────────────────────────
@@ -155,6 +156,15 @@ function TaxBadge({ status }: { status: 'Active' | 'Incomplete' }) {
   );
 }
 
+// ── Authorization status ────────────────────────────────────────
+const AUTH_STATUSES = ['Needs action', 'In progress', 'Authorized'] as const;
+type AuthStatus = typeof AUTH_STATUSES[number];
+const AUTH_STYLES: Record<AuthStatus, string> = {
+  'Needs action': 'bg-rose-50 text-rose-700 border-rose-200',
+  'In progress':  'bg-amber-50 text-amber-700 border-amber-200',
+  'Authorized':   'bg-teal-50 text-teal-700 border-teal-200',
+};
+
 // ── Stat card ──────────────────────────────────────────────────
 function StatCard({ s, active, onClick }: Readonly<{ s: StatDef; active: boolean; onClick?: () => void }>) {
   const interactive = Boolean(onClick);
@@ -236,6 +246,41 @@ function MultiSelectFilter({ label, options, selected, onChange }: {
               Clear
             </button>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Mark as dropdown (bulk authorization update) ────────────────
+function MarkAsDropdown({ disabled, onSelect }: { disabled: boolean; onSelect: (status: AuthStatus) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button type="button" disabled={disabled} onClick={() => setOpen(o => !o)}
+        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${disabled ? 'border-slate-200 text-slate-300 bg-slate-50 cursor-not-allowed' : 'border-slate-300 text-slate-700 bg-white hover:bg-slate-50 cursor-pointer'}`}>
+        Mark as
+        <Ic d={I.chevDown} size={11} />
+      </button>
+      {open && !disabled && (
+        <div className="absolute right-0 z-10 mt-1 w-40 bg-white border border-slate-200 rounded-lg shadow-lg py-1">
+          {AUTH_STATUSES.map(status => (
+            <button key={status} type="button" onClick={() => { onSelect(status); setOpen(false); }}
+              className="w-full text-left px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-50">
+              {status}
+            </button>
+          ))}
         </div>
       )}
     </div>
@@ -494,8 +539,6 @@ function HomePage({ onSelect, onManageAuthorizations }: { onSelect: (e: LegalEnt
 
 // ── DETAIL PAGE main content ───────────────────────────────────
 function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entity: LegalEntity; onBack: () => void; preselectEntityFilter?: boolean }) {
-  const [nameFilter, setNameFilter] = useState<string[]>([]);
-  const [taxCodeFilter, setTaxCodeFilter] = useState<string[]>([]);
   const [stateFilter, setStateFilter] = useState<string[]>([]);
   const [statusFilter, setStatusFilter] = useState<string[]>([]);
   const [authFilter, setAuthFilter] = useState<string[]>([]);
@@ -504,20 +547,31 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
     preselectEntityFilter ? [entity.federalId] : []
   );
   const [namespaceFilter, setNamespaceFilter] = useState<string[]>([]);
+  const [customerFilter, setCustomerFilter] = useState<string[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [page, setPage] = useState(1);
-  const [authorized, setAuthorized] = useState<Record<number, boolean>>(
-    () => Object.fromEntries(TAX_ROWS.map(r => [r.id, r.isAuthorized]))
+  const [authStatus, setAuthStatus] = useState<Record<number, AuthStatus>>(
+    () => Object.fromEntries(TAX_ROWS.map(r => [r.id, r.isAuthorized ? 'Authorized' : 'Needs action']))
   );
-  const toggleAuthorized = (id: number) => {
-    setAuthorized(p => ({ ...p, [id]: !p[id] }));
-    setSaved(false);
+  const setRowAuthStatus = (id: number, status: AuthStatus) => {
+    setAuthStatus(p => ({ ...p, [id]: status }));
   };
-  const [saved, setSaved] = useState(false);
-  const handleSubmit = () => {
-    if (window.confirm('All these changes will be saved. Are you sure?')) {
-      setSaved(true);
-    }
+  const [notification, setNotification] = useState<{ count: number; status: AuthStatus } | null>(null);
+  useEffect(() => {
+    if (!notification) return;
+    const t = setTimeout(() => setNotification(null), 4000);
+    return () => clearTimeout(t);
+  }, [notification]);
+  const markSelectedAs = (status: AuthStatus) => {
+    if (selected.length === 0) return;
+    const count = selected.length;
+    setAuthStatus(p => {
+      const next = { ...p };
+      selected.forEach(id => { next[id] = status; });
+      return next;
+    });
+    setNotification({ count, status });
+    setSelected([]);
   };
 
   const TOTAL = 10625;
@@ -526,29 +580,27 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
   const allChecked = selected.length === TAX_ROWS.length;
   const toggleAll = () => setSelected(allChecked ? [] : TAX_ROWS.map(r => r.id));
   const entityById = useMemo(() => new Map(ENTITIES.map(e => [e.id, e])), []);
-  const nameOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => r.name))].sort((a, b) => a.localeCompare(b)), []);
-  const taxCodeOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => r.taxCode))].sort((a, b) => a.localeCompare(b)), []);
   const stateOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => r.state))].sort((a, b) => a.localeCompare(b)), []);
   const statusOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => r.status))].sort((a, b) => a.localeCompare(b)), []);
-  const authOptions = ['Authorized', 'Not authorized'];
+  const authOptions: string[] = [...AUTH_STATUSES];
   const entityNameOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => entityById.get(r.entityId)?.name ?? ''))].sort((a, b) => a.localeCompare(b)), [entityById]);
   const entityNumberOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => entityById.get(r.entityId)?.federalId ?? ''))].sort((a, b) => a.localeCompare(b)), [entityById]);
   const namespaceOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => entityById.get(r.entityId)?.namespace ?? ''))].sort((a, b) => a.localeCompare(b)), [entityById]);
+  const customerOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => entityById.get(r.entityId)?.customerName ?? ''))].sort((a, b) => a.localeCompare(b)), [entityById]);
   const filtered = TAX_ROWS.filter(r => {
     const rowEntity = entityById.get(r.entityId);
-    return (nameFilter.length === 0 || nameFilter.includes(r.name)) &&
-      (taxCodeFilter.length === 0 || taxCodeFilter.includes(r.taxCode)) &&
-      (stateFilter.length === 0 || stateFilter.includes(r.state)) &&
+    return (stateFilter.length === 0 || stateFilter.includes(r.state)) &&
       (statusFilter.length === 0 || statusFilter.includes(r.status)) &&
-      (authFilter.length === 0 || authFilter.includes(authorized[r.id] ? 'Authorized' : 'Not authorized')) &&
+      (authFilter.length === 0 || authFilter.includes(authStatus[r.id])) &&
       (entityNameFilter.length === 0 || entityNameFilter.includes(rowEntity?.name ?? '')) &&
       (entityNumberFilter.length === 0 || entityNumberFilter.includes(rowEntity?.federalId ?? '')) &&
-      (namespaceFilter.length === 0 || namespaceFilter.includes(rowEntity?.namespace ?? ''));
+      (namespaceFilter.length === 0 || namespaceFilter.includes(rowEntity?.namespace ?? '')) &&
+      (customerFilter.length === 0 || customerFilter.includes(rowEntity?.customerName ?? ''));
   });
-  const hasActiveFilters = Boolean(nameFilter.length || taxCodeFilter.length || stateFilter.length || statusFilter.length || authFilter.length || entityNameFilter.length || entityNumberFilter.length || namespaceFilter.length);
+  const hasActiveFilters = Boolean(stateFilter.length || statusFilter.length || authFilter.length || entityNameFilter.length || entityNumberFilter.length || namespaceFilter.length || customerFilter.length);
   const clearAllFilters = () => {
-    setNameFilter([]); setTaxCodeFilter([]); setStateFilter([]); setStatusFilter([]); setAuthFilter([]);
-    setEntityNameFilter([]); setEntityNumberFilter([]); setNamespaceFilter([]);
+    setStateFilter([]); setStatusFilter([]); setAuthFilter([]);
+    setEntityNameFilter([]); setEntityNumberFilter([]); setNamespaceFilter([]); setCustomerFilter([]);
   };
 
   return (
@@ -578,17 +630,35 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
             </div>
           </div>
 
+          {/* Contextual bulk-action bar — appears next to the checkboxes it acts on */}
+          {selected.length > 0 ? (
+            <div className="flex items-center justify-between px-5 py-2.5 border-b border-blue-100 bg-blue-50">
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-semibold text-blue-800">{selected.length} selected</span>
+                <span className="text-xs text-blue-700">Mark as</span>
+                <MarkAsDropdown disabled={false} onSelect={markSelectedAs} />
+              </div>
+              <button onClick={() => setSelected([])} className="text-xs font-medium text-blue-700 hover:text-blue-900 transition-colors">
+                Clear selection
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-5 py-2 border-b border-slate-100 bg-slate-50/80">
+              <Ic d={I.info} size={14} className="text-slate-400 shrink-0" />
+              <span className="text-xs text-slate-500">Select tax codes using the checkboxes to update their authorization status in bulk</span>
+            </div>
+          )}
+
           {/* Filter row */}
           <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-slate-50/60">
             <div className="flex items-center gap-2 flex-wrap">
-              <MultiSelectFilter label="Tax name" options={nameOptions} selected={nameFilter} onChange={setNameFilter} />
-              <MultiSelectFilter label="Tax code" options={taxCodeOptions} selected={taxCodeFilter} onChange={setTaxCodeFilter} />
-              <MultiSelectFilter label="State" options={stateOptions} selected={stateFilter} onChange={setStateFilter} />
-              <MultiSelectFilter label="Status" options={statusOptions} selected={statusFilter} onChange={setStatusFilter} />
-              <MultiSelectFilter label="Is authorized" options={authOptions} selected={authFilter} onChange={setAuthFilter} />
+              <MultiSelectFilter label="Customer name" options={customerOptions} selected={customerFilter} onChange={setCustomerFilter} />
+              <MultiSelectFilter label="Namespace" options={namespaceOptions} selected={namespaceFilter} onChange={setNamespaceFilter} />
               <MultiSelectFilter label="Legal entity name" options={entityNameOptions} selected={entityNameFilter} onChange={setEntityNameFilter} />
               <MultiSelectFilter label="Legal entity number" options={entityNumberOptions} selected={entityNumberFilter} onChange={setEntityNumberFilter} />
-              <MultiSelectFilter label="Namespace" options={namespaceOptions} selected={namespaceFilter} onChange={setNamespaceFilter} />
+              <MultiSelectFilter label="State" options={stateOptions} selected={stateFilter} onChange={setStateFilter} />
+              <MultiSelectFilter label="Status" options={statusOptions} selected={statusFilter} onChange={setStatusFilter} />
+              <MultiSelectFilter label="Authorization status" options={authOptions} selected={authFilter} onChange={setAuthFilter} />
             </div>
             {hasActiveFilters && (
               <button onClick={clearAllFilters} className="text-xs font-medium text-blue-600 hover:text-blue-700 transition-colors whitespace-nowrap">Clear all filters</button>
@@ -603,7 +673,7 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
                   <th className="w-10 px-4 py-3 text-left">
                     <input type="checkbox" checked={allChecked} onChange={toggleAll} className="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer" />
                   </th>
-                  {['Tax name', 'Legal entity name', 'Status', 'Short name', 'State', 'Is authorized'].map(col => (
+                  {['Tax name', 'Legal entity name', 'Status', 'Short name', 'State', 'Authorization status'].map(col => (
                     <th key={col} className="px-3 py-3 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">{col}</th>
                   ))}
                 </tr>
@@ -639,13 +709,12 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
                     <td className="px-3 py-3 text-xs text-slate-600 font-mono whitespace-nowrap">{row.shortName}</td>
                     <td className="px-3 py-3 text-[13px] text-slate-600 whitespace-nowrap">{row.state}</td>
                     <td className="px-3 py-3 whitespace-nowrap">
-                      <button
-                        role="switch"
-                        aria-checked={authorized[row.id]}
-                        onClick={() => toggleAuthorized(row.id)}
-                        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${authorized[row.id] ? 'bg-blue-600' : 'bg-slate-300'}`}>
-                        <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${authorized[row.id] ? 'translate-x-4.5' : 'translate-x-1'}`} />
-                      </button>
+                      <select
+                        value={authStatus[row.id]}
+                        onChange={e => setRowAuthStatus(row.id, e.target.value as AuthStatus)}
+                        className={`text-xs font-medium rounded-md border px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer ${AUTH_STYLES[authStatus[row.id]]}`}>
+                        {AUTH_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}
+                      </select>
                     </td>
                   </tr>
                 ))}
@@ -685,16 +754,17 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Submit */}
-        <div className="flex items-center justify-end gap-3 mt-5">
-          {saved && <span className="text-xs text-emerald-600 font-medium">Changes saved</span>}
-          <button onClick={handleSubmit}
-            className="px-4 py-2 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">
-            Submit
+      {notification && (
+        <div className="fixed bottom-6 right-6 z-50 flex items-center gap-3 bg-white border border-slate-200 rounded-lg shadow-lg px-4 py-3">
+          <Ic d={I.checkCircle} size={16} className="text-emerald-500 shrink-0" />
+          <span className="text-sm text-slate-700">{notification.count} tax code{notification.count === 1 ? '' : 's'} marked as {notification.status.toLowerCase()}</span>
+          <button onClick={() => setNotification(null)} className="text-slate-400 hover:text-slate-600">
+            <Ic d={I.plus} size={14} className="rotate-45" />
           </button>
         </div>
-      </div>
+      )}
     </div>
   );
 }
