@@ -546,7 +546,6 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
   const [entityNumberFilter, setEntityNumberFilter] = useState<string[]>(
     preselectEntityFilter ? [entity.federalId] : []
   );
-  const [namespaceFilter, setNamespaceFilter] = useState<string[]>([]);
   const [customerFilter, setCustomerFilter] = useState<string[]>([]);
   const [selected, setSelected] = useState<number[]>([]);
   const [page, setPage] = useState(1);
@@ -589,8 +588,10 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
   const authOptions: string[] = [...AUTH_STATUSES];
   const entityNameOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => entityById.get(r.entityId)?.name ?? ''))].sort((a, b) => a.localeCompare(b)), [entityById]);
   const entityNumberOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => entityById.get(r.entityId)?.federalId ?? ''))].sort((a, b) => a.localeCompare(b)), [entityById]);
-  const namespaceOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => entityById.get(r.entityId)?.namespace ?? ''))].sort((a, b) => a.localeCompare(b)), [entityById]);
-  const customerOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => entityById.get(r.entityId)?.customerName ?? ''))].sort((a, b) => a.localeCompare(b)), [entityById]);
+  const customerNamespaceOptions = useMemo(() => [...new Set(TAX_ROWS.map(r => {
+    const e = entityById.get(r.entityId);
+    return `${e?.customerName ?? ''} — ${e?.namespace ?? ''}`;
+  }))].sort((a, b) => a.localeCompare(b)), [entityById]);
   const filtered = TAX_ROWS.filter(r => {
     const rowEntity = entityById.get(r.entityId);
     return (stateFilter.length === 0 || stateFilter.includes(r.state)) &&
@@ -598,13 +599,12 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
       (authFilter.length === 0 || authFilter.includes(authStatus[r.id])) &&
       (entityNameFilter.length === 0 || entityNameFilter.includes(rowEntity?.name ?? '')) &&
       (entityNumberFilter.length === 0 || entityNumberFilter.includes(rowEntity?.federalId ?? '')) &&
-      (namespaceFilter.length === 0 || namespaceFilter.includes(rowEntity?.namespace ?? '')) &&
-      (customerFilter.length === 0 || customerFilter.includes(rowEntity?.customerName ?? ''));
+      (customerFilter.length === 0 || customerFilter.includes(`${rowEntity?.customerName ?? ''} — ${rowEntity?.namespace ?? ''}`));
   });
-  const hasActiveFilters = Boolean(stateFilter.length || statusFilter.length || authFilter.length || entityNameFilter.length || entityNumberFilter.length || namespaceFilter.length || customerFilter.length);
+  const hasActiveFilters = Boolean(stateFilter.length || statusFilter.length || authFilter.length || entityNameFilter.length || entityNumberFilter.length || customerFilter.length);
   const clearAllFilters = () => {
     setStateFilter([]); setStatusFilter([]); setAuthFilter([]);
-    setEntityNameFilter([]); setEntityNumberFilter([]); setNamespaceFilter([]); setCustomerFilter([]);
+    setEntityNameFilter([]); setEntityNumberFilter([]); setCustomerFilter([]);
   };
 
   return (
@@ -655,8 +655,7 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
           {/* Filter row */}
           <div className="flex items-center justify-between px-5 py-2.5 border-b border-slate-100 bg-slate-50/60">
             <div className="flex items-center gap-2 flex-wrap">
-              <MultiSelectFilter label="Customer name" options={customerOptions} selected={customerFilter} onChange={setCustomerFilter} />
-              <MultiSelectFilter label="Namespace" options={namespaceOptions} selected={namespaceFilter} onChange={setNamespaceFilter} />
+              <MultiSelectFilter label="Customer / Namespace" options={customerNamespaceOptions} selected={customerFilter} onChange={setCustomerFilter} />
               <MultiSelectFilter label="Legal entity name" options={entityNameOptions} selected={entityNameFilter} onChange={setEntityNameFilter} />
               <MultiSelectFilter label="Legal entity number" options={entityNumberOptions} selected={entityNumberFilter} onChange={setEntityNumberFilter} />
               <MultiSelectFilter label="State" options={stateOptions} selected={stateFilter} onChange={setStateFilter} />
@@ -676,7 +675,7 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
                   <th className="w-10 px-4 py-3 text-left">
                     <input type="checkbox" checked={allChecked} onChange={toggleAll} className="w-4 h-4 rounded border-slate-300 text-blue-600 cursor-pointer" />
                   </th>
-                  {['Tax name', 'Legal entity name', 'Status', 'Short name', 'State', 'Authorization status'].map(col => (
+                  {['Tax name', 'Customer / Namespace', 'Legal Entity', 'Status', 'Short name', 'State', 'Authorization status'].map(col => (
                     <th key={col} className="px-3 py-3 text-left text-xs font-semibold text-slate-500 whitespace-nowrap">{col}</th>
                   ))}
                 </tr>
@@ -701,12 +700,12 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
                       </div>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap">
+                      <p className="text-[13px] text-slate-700">{entityById.get(row.entityId)?.customerName}</p>
+                      <p className="mt-0.5 text-xs italic text-slate-400">{entityById.get(row.entityId)?.namespace}</p>
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap">
                       <p className="text-[13px] text-slate-700">{entityById.get(row.entityId)?.name}</p>
-                      <p className="mt-0.5 text-xs font-mono text-slate-500">
-                        {entityById.get(row.entityId)?.federalId}
-                        <span className="mx-1.5 text-slate-300">|</span>
-                        <span className="italic text-slate-400">{entityById.get(row.entityId)?.namespace}</span>
-                      </p>
+                      <p className="mt-0.5 text-xs font-mono text-slate-500">{entityById.get(row.entityId)?.federalId}</p>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap"><TaxBadge status={row.status} /></td>
                     <td className="px-3 py-3 text-xs text-slate-600 font-mono whitespace-nowrap">{row.shortName}</td>
