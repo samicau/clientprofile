@@ -270,7 +270,7 @@ function MarkAsDropdown({ disabled, onSelect }: { disabled: boolean; onSelect: (
     <div className="relative" ref={ref}>
       <button type="button" disabled={disabled} onClick={() => setOpen(o => !o)}
         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-colors ${disabled ? 'border-slate-200 text-slate-300 bg-slate-50 cursor-not-allowed' : 'border-slate-300 text-slate-700 bg-white hover:bg-slate-50 cursor-pointer'}`}>
-        Mark as
+        Set authorization to
         <Ic d={I.chevDown} size={11} />
       </button>
       {open && !disabled && (
@@ -562,8 +562,14 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
     const t = setTimeout(() => setNotification(null), 4000);
     return () => clearTimeout(t);
   }, [notification]);
-  const markSelectedAs = (status: AuthStatus) => {
+  const [pendingMarkAs, setPendingMarkAs] = useState<AuthStatus | null>(null);
+  const requestMarkSelectedAs = (status: AuthStatus) => {
     if (selected.length === 0) return;
+    setPendingMarkAs(status);
+  };
+  const confirmMarkSelectedAs = () => {
+    if (!pendingMarkAs) return;
+    const status = pendingMarkAs;
     const count = selected.length;
     setAuthStatus(p => {
       const next = { ...p };
@@ -572,6 +578,7 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
     });
     setNotification({ count, status });
     setSelected([]);
+    setPendingMarkAs(null);
   };
 
   const TOTAL = 10625;
@@ -632,20 +639,19 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
 
           {/* Contextual bulk-action bar — appears next to the checkboxes it acts on */}
           {selected.length > 0 ? (
-            <div className="flex items-center justify-between px-5 py-2.5 border-b border-blue-100 bg-blue-50">
+            <div className="flex items-center justify-between px-5 h-11 border-b border-blue-100 bg-blue-50">
               <div className="flex items-center gap-3">
                 <span className="text-xs font-semibold text-blue-800">{selected.length} selected</span>
-                <span className="text-xs text-blue-700">Mark as</span>
-                <MarkAsDropdown disabled={false} onSelect={markSelectedAs} />
+                <MarkAsDropdown disabled={false} onSelect={requestMarkSelectedAs} />
               </div>
               <button onClick={() => setSelected([])} className="text-xs font-medium text-blue-700 hover:text-blue-900 transition-colors">
                 Clear selection
               </button>
             </div>
           ) : (
-            <div className="flex items-center gap-2 px-5 py-2 border-b border-slate-100 bg-slate-50/80">
+            <div className="flex items-center gap-2 px-5 h-11 border-b border-slate-100 bg-slate-50/80">
               <Ic d={I.info} size={14} className="text-slate-400 shrink-0" />
-              <span className="text-xs text-slate-500">Select tax codes using the checkboxes to update their authorization status in bulk</span>
+              <span className="text-xs text-slate-500">Select tax codes to bulk-update their status.</span>
             </div>
           )}
 
@@ -763,6 +769,27 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
           <button onClick={() => setNotification(null)} className="text-slate-400 hover:text-slate-600">
             <Ic d={I.plus} size={14} className="rotate-45" />
           </button>
+        </div>
+      )}
+
+      {pendingMarkAs && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
+          <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-sm w-full p-5">
+            <h4 className="text-sm font-semibold text-slate-900">Update authorization status</h4>
+            <p className="mt-2 text-sm text-slate-600">
+              Are you sure you want to set the authorization status to <span className="font-medium text-slate-900">{pendingMarkAs}</span> for <span className="font-medium text-slate-900">{selected.length}</span> tax code{selected.length === 1 ? '' : 's'}?
+            </p>
+            <div className="flex items-center justify-end gap-2 mt-5">
+              <button onClick={() => setPendingMarkAs(null)}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 text-sm font-medium text-slate-600 hover:bg-slate-50 transition-colors">
+                Cancel
+              </button>
+              <button onClick={confirmMarkSelectedAs}
+                className="px-3 py-1.5 rounded-lg bg-blue-600 text-white text-sm font-medium hover:bg-blue-700 transition-colors">
+                Confirm
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
