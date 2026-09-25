@@ -553,9 +553,6 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
   const [authStatus, setAuthStatus] = useState<Record<number, AuthStatus>>(
     () => Object.fromEntries(TAX_ROWS.map(r => [r.id, r.isAuthorized ? 'Authorized' : 'Needs action']))
   );
-  const setRowAuthStatus = (id: number, status: AuthStatus) => {
-    setAuthStatus(p => ({ ...p, [id]: status }));
-  };
   const [notification, setNotification] = useState<{ count: number; status: AuthStatus } | null>(null);
   useEffect(() => {
     if (!notification) return;
@@ -651,7 +648,7 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
           ) : (
             <div className="flex items-center gap-2 px-5 h-11 border-b border-slate-100 bg-slate-50/80">
               <Ic d={I.info} size={14} className="text-slate-400 shrink-0" />
-              <span className="text-xs text-slate-500">Select tax codes to bulk-update their status.</span>
+              <span className="text-xs text-slate-500">Select one or more tax codes to update their authorization status.</span>
             </div>
           )}
 
@@ -715,12 +712,9 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
                     <td className="px-3 py-3 text-xs text-slate-600 font-mono whitespace-nowrap">{row.shortName}</td>
                     <td className="px-3 py-3 text-[13px] text-slate-600 whitespace-nowrap">{row.state}</td>
                     <td className="px-3 py-3 whitespace-nowrap">
-                      <select
-                        value={authStatus[row.id]}
-                        onChange={e => setRowAuthStatus(row.id, e.target.value as AuthStatus)}
-                        className={`text-xs font-medium rounded-md border px-2 py-1 focus:outline-none focus:ring-1 focus:ring-blue-400 cursor-pointer ${AUTH_STYLES[authStatus[row.id]]}`}>
-                        {AUTH_STATUSES.map(status => <option key={status} value={status}>{status}</option>)}
-                      </select>
+                      <span className={`inline-flex items-center text-xs font-medium rounded-md border px-2 py-1 ${AUTH_STYLES[authStatus[row.id]]}`}>
+                        {authStatus[row.id]}
+                      </span>
                     </td>
                   </tr>
                 ))}
