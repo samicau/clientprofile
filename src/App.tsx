@@ -769,9 +769,14 @@ function DetailContent({ entity, onBack, preselectEntityFilter = true }: { entit
       {pendingMarkAs && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 px-4">
           <div className="bg-white rounded-xl shadow-xl border border-slate-200 max-w-sm w-full p-5">
-            <h4 className="text-sm font-semibold text-slate-900">Update authorization status</h4>
+            <div className="flex items-start justify-between gap-3">
+              <h4 className="text-sm font-semibold text-slate-900">Set {selected.length} tax code{selected.length === 1 ? '' : 's'} to {pendingMarkAs}?</h4>
+              <button onClick={() => setPendingMarkAs(null)} className="text-slate-400 hover:text-slate-600 shrink-0">
+                <Ic d={I.plus} size={16} className="rotate-45" />
+              </button>
+            </div>
             <p className="mt-2 text-sm text-slate-600">
-              Are you sure you want to set the authorization status to <span className="font-medium text-slate-900">{pendingMarkAs}</span> for <span className="font-medium text-slate-900">{selected.length}</span> tax code{selected.length === 1 ? '' : 's'}?
+              This will update the authorization status of {selected.length} selected tax code{selected.length === 1 ? '' : 's'} to {pendingMarkAs}.
             </p>
             <div className="flex items-center justify-end gap-2 mt-5">
               <button onClick={() => setPendingMarkAs(null)}
